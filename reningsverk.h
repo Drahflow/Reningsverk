@@ -26,8 +26,15 @@ class Reningsverk {
 
     std::string getInfo();
     std::vector<Issue *> findIssues(const IssueState &);
+    Issue *findIssue(const Initiative &);
     std::vector<Initiative *> findInitiatives(const Issue &);
     Draft *findCurrentDraft(const Initiative &);
+    std::vector<Suggestion *> findSuggestions(const Initiative &);
+
+    void support(const Initiative &, bool yes);
+    void setOpinionDegree(const Suggestion &, int degree);
+    void setOpinionFulfilment(const Suggestion &, bool fulfilled);
+    void resetOpinion(const Suggestion &);
 
   private:
     constexpr static bool DUMP = true;
@@ -52,6 +59,13 @@ class Reningsverk {
     std::map<std::string, std::unique_ptr<Issue>> issueCache;
     std::map<std::string, std::unique_ptr<Initiative>> initiativeCache;
     std::map<std::string, std::unique_ptr<Draft>> draftCache;
+    std::map<std::string, std::unique_ptr<Suggestion>> suggestionCache;
+
+    template<typename T, typename J> T *encache(std::map<std::string, std::unique_ptr<T>> &cache, const J &j) {
+      const std::string idStr = str(j["id"]);
+      if(cache.find(idStr) == cache.end()) cache[idStr] = std::unique_ptr<T>(new T(*this, j));
+      return cache[idStr].get();
+    }
 };
 
 #endif

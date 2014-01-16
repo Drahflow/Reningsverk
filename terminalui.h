@@ -64,6 +64,7 @@ class TerminalUI {
     void menuIssueSet(std::vector<Issue *>);
     void menuIssue(Issue *);
     void menuInitiative(Initiative *);
+    void menuSuggestion(Suggestion *);
 
     char nextKey(char);
 };

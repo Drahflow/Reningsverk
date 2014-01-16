@@ -18,7 +18,6 @@ string TerminalUI::readline() {
 }
 
 void TerminalUI::menuIssueSet(std::vector<Issue *> v) {
-  bool run = true;
   char k = 'a';
   std::map<char, Initiative *> inis;
 
@@ -29,6 +28,7 @@ void TerminalUI::menuIssueSet(std::vector<Issue *> v) {
     }
   }
 
+  bool run = true;
   while(run) {
     Choices c;
     std::string k = "a";
@@ -88,17 +88,70 @@ void TerminalUI::menuIssue(Issue *) {
 }
 
 void TerminalUI::menuInitiative(Initiative *i) {
-  bool run = true;
+  std::map<char, Suggestion *> sugs;
+  char k = 'a';
+  for(auto &j: i->findSuggestions()) {
+    sugs[k] = j;
+    k = nextKey(k);
+  }
 
+  bool run = true;
   while(run) {
     Choices c;
     c[""] = [&]{ run = false; };
+    c["help"] = [=] {
+      cout << "<letter> - select suggestion" << endl;
+      if(i->findIssue()->state() == IssueState::DISCUSSION) {
+        cout << "sup - support initiative" << endl;
+        cout << "rej - reject initiative" << endl;
+      }
+    };
+
+    if(i->findIssue()->state() == IssueState::DISCUSSION) {
+      c["sup"] = [=] { i->support(true); };
+      c["rej"] = [=] { i->support(false); };
+    }
 
     std::string txt = i->currentDraft()->content();
     cout << "===" << i->name() << "===" << endl;
     cout << txt << endl;
+    cout << "=== Suggestions ===" << endl;
+
+    for(auto &i: sugs) {
+      cout << i.first << ") " << i.second->name() << endl;
+      c[std::string() + i.first] = [=]{ menuSuggestion(i.second); };
+    }
 
     handleChoice("Initiative", c);
+  }
+}
+
+void TerminalUI::menuSuggestion(Suggestion *s) {
+  cout << "===" << s->name() << "===" << endl;
+  cout << s->content() << endl;
+
+  bool run = true;
+  while(run) {
+    Choices c;
+    c[""] = [&]{ run = false; };
+    c["help"] = [] {
+      cout << "mn - mark suggestion as 'must not'" << endl;
+      cout << "sn - mark suggestion as 'should not'" << endl;
+      cout << "s - mark suggestion as 'should'" << endl;
+      cout << "m - mark suggestion as 'must'" << endl;
+      cout << "f - mark suggestion as 'fulfilled'" << endl;
+      cout << "u - mark suggestion as 'unfulfilled'" << endl;
+      cout << "n - remove mark on suggestion" << endl;
+    };
+    c["mn"] = [=] { s->setOpinion(Suggestion::MUST_NOT); };
+    c["sn"] = [=] { s->setOpinion(Suggestion::SHOULD_NOT); };
+    c["s"] = [=] { s->setOpinion(Suggestion::SHOULD); };
+    c["m"] = [=] { s->setOpinion(Suggestion::MUST); };
+    c["f"] = [=] { s->setOpinion(Suggestion::FULFILLED); };
+    c["u"] = [=] { s->setOpinion(Suggestion::UNFULFILLED); };
+    c["n"] = [=] { s->resetOpinion(); };
+
+    handleChoice("Suggestion", c);
   }
 }
 
@@ -110,14 +163,14 @@ void TerminalUI::operator() () {
         { "help", []{
           cout << "help - display this" << endl;
           cout << "info - query lqfb instance for general info" << endl;
-          cout << "disc - display all issues in discussion" << endl;
+          cout << "admi - select all issues in admission" << endl;
+          cout << "disc - select all issues in discussion" << endl;
+          cout << "vote - select all issues in voting" << endl;
         }},
-        { "info", [=]{
-          cout << r.getInfo() << endl;
-        }},
-        { "disc", [=]{
-          menuIssueSet(r.findIssues(IssueState::DISCUSSION));
-        }}
+        { "info", [=]{ cout << r.getInfo() << endl; }},
+        { "admi", [=]{ menuIssueSet(r.findIssues(IssueState::ADMISSION)); }},
+        { "disc", [=]{ menuIssueSet(r.findIssues(IssueState::DISCUSSION)); }},
+        { "vote", [=]{ menuIssueSet(r.findIssues(IssueState::VOTING)); }}
       });
   }
 }
