@@ -18,8 +18,8 @@ void Suggestion::setOpinion(const Opinion &o) {
 
 void Suggestion::setOpinion(const Fulfillment &f) {
   switch(f) {
-    case FULFILLED: r.setOpinionFulfilment(*this, true);
-    case UNFULFILLED: r.setOpinionFulfilment(*this, false);
+    case FULFILLED: r.setOpinionFulfilment(*this, true); break;
+    case UNFULFILLED: r.setOpinionFulfilment(*this, false); break;
     default: throw logic_error("invalid fulfilment set");
   }
 }

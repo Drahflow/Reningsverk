@@ -16,6 +16,11 @@ class Suggestion {
       str << data["id"].asUInt();
       return str.str();
     };
+    std::string initiativeId() const {
+      std::ostringstream str;
+      str << data["initiative_id"].asUInt();
+      return str.str();
+    };
 
     std::string name() const { return data["name"].asString(); }
     std::string content() const { return data["content"].asString(); }

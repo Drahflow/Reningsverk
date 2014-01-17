@@ -3,6 +3,7 @@
 #include <iostream>
 #include <sstream>
 #include <set>
+#include <list>
 
 #include <Poco/Net/HTMLForm.h>
 
@@ -11,22 +12,54 @@ using namespace Poco::Net;
 using namespace Poco;
 
 const std::string HOST = "lqfb.piratenpartei.de";
-const std::string API_BASE = "/api";
+const std::string WEB = "/lf";
+const std::string API = "/api";
 
 // FIXME: hardcode certificate instead
-Reningsverk::Reningsverk(const std::string &key): key{key},
+Reningsverk::Reningsverk(const string &key, const string &user, const string &password):
   httpSession{new HTTPSClientSession{HOST, HTTPSClientSession::HTTPS_PORT,
       new Context{Context::CLIENT_USE, "", "", "", Context::VERIFY_NONE, 9, true}}} {
 
-  fetchSessionKey();
+  // TODO: this HTML "parsing" would be better done with a regex
+  string loginString;
+  istream &loginStream = http(GET, WEB + "/index/login.html", {});
+  list<string> tokens;
+
+  while(loginStream) {
+    string tok;
+    loginStream >> tok;
+    tokens.push_back(tok);
+    if(tokens.size() > 3) tokens.pop_front();
+
+    if(tok == "name=\"_webmcp_csrf_secret\"") csrfToken = tokens.front();
+  }
+  if(csrfToken.length() != 40) throw std::runtime_error("could not find CSRF token");
+  csrfToken = csrfToken.substr(7, 32);
+  
+  cout << "CSRF-Token: " << csrfToken << endl;
+
+  istream &loggedIn = http(POST, WEB + "/index/login", {
+      {"password", password},
+      {"login", user},
+      {"_webmcp_csrf_secret", csrfToken},
+      {"_webmcp_routing.ok.view", "index"},
+      {"_webmcp_routing.ok.module", "index"},
+      {"_webmcp_routing.ok.mode",  "redirect"},
+      {"_webmcp_routing.error.view", "login"},
+      {"_webmcp_routing.error.module", "index"},
+      {"_webmcp_routing.error.mode", "forward"},
+      {"_webmcp_routing.default.view", "login"},
+      {"_webmcp_routing.default.module", "index"},
+      {"_webmcp_routing.default.mode", "forward"},
+      });
+
+  StreamCopier().copyStream(loggedIn, cout);
+
+  sessionKey = lqfb(POST, API + "/session", {{"key", key}})["session_key"].asString();
 }
 
-void Reningsverk::fetchSessionKey() {
-  sessionKey = lqfb(POST, "/session", {{"key", key}}, false)["session_key"];
-}
-
-Json::Value Reningsverk::lqfb(const Method &method, const std::string &path,
-    const std::map<std::string, Json::Value> &data, bool includeSessionKey) {
+std::istream &Reningsverk::http(const Method &method, const std::string &path,
+    const std::map<std::string, Json::Value> &data) {
 
   auto httpMethod = HTTPRequest::HTTP_POST;
   switch(method) {
@@ -35,10 +68,15 @@ Json::Value Reningsverk::lqfb(const Method &method, const std::string &path,
     default: throw std::logic_error("invalid http method specified");
   }
 
-  HTTPRequest request(httpMethod, API_BASE + path);
+  HTTPRequest request(httpMethod, path);
+  {
+    NameValueCollection cookies;
+    for(auto &i: httpCookies) cookies.set(i.first, i.second);
+    request.setCookies(cookies);
+  }
   HTMLForm form;
   for(const auto &i: data) form.add(i.first, i.second.asString());
-  if(includeSessionKey) form.add("session_key", sessionKey.asString());
+  if(sessionKey != "") form.add("session_key", sessionKey);
   form.prepareSubmit(request);
   if(DUMP) {
     request.write(cout);
@@ -51,16 +89,36 @@ Json::Value Reningsverk::lqfb(const Method &method, const std::string &path,
   }
 
   HTTPResponse response;
-  std::istream& resStream = httpSession->receiveResponse(response);
-  if(DUMP) cout << response.getStatus() << ": " << response.getReason() << endl;
+  istream &resStream = httpSession->receiveResponse(response);
+  if(DUMP) cout << response.getStatus() << " " << response.getReason() << endl;
+  if(DUMP) for(auto &i: response) cout << i.first << ": " << i.second << endl;
+
+  {
+    vector<HTTPCookie> cookies; response.getCookies(cookies);
+    for(auto &i: cookies) httpCookies[i.getName()] = i.getValue();
+    if(DUMP) for(auto &i: cookies) cout << i.getName() << ": " << i.getValue() << endl;
+  }
+
+  if(DUMP) {
+    cout << "Cookies now: " << endl;
+    for(auto &i: httpCookies) cout << i.first << ": " << i.second << endl;
+  }
+
+  return resStream;
+}
+
+Json::Value Reningsverk::lqfb(const Method &method, const std::string &path,
+    const std::map<std::string, Json::Value> &data) {
+
+  istream &resStream = http(method, path, data);
   Json::Value ret;
   Json::Reader().parse(resStream, ret);
-  if(DUMP) cout << ret.toStyledString() << endl;
+  // if(DUMP) cout << ret.toStyledString() << endl;
   return ret;
 }
 
 std::string Reningsverk::getInfo() {
-  return lqfb(GET, "/info", {}).toStyledString();
+  return lqfb(GET, API + "/info", {}).toStyledString();
 }
 
 vector<Issue *> Reningsverk::findIssues(const IssueState &state) {
@@ -76,7 +134,7 @@ vector<Issue *> Reningsverk::findIssues(const IssueState &state) {
   bool any = false;
 
   vector<Issue *> ret;
-  auto v = lqfb(GET, "/issue", {{"issue_state", strState}})["result"];
+  auto v = lqfb(GET, API + "/issue", {{"issue_state", strState}})["result"];
   for(auto &i: v) {
     if(issueCache.find(str(i["id"])) == issueCache.end()) {
       // issueCache.emplace({str(i["id"]), {new Issue(*this, i)});
@@ -91,7 +149,7 @@ vector<Issue *> Reningsverk::findIssues(const IssueState &state) {
   }
 
   if(any) {
-    auto v2 = lqfb(GET, "/initiative", {{"issue_id", newIssues.str()}})["result"];
+    auto v2 = lqfb(GET, API + "/initiative", {{"issue_id", newIssues.str()}})["result"];
     for(auto &i: v2) {
       Initiative *ini = encache(initiativeCache, i);
 
@@ -106,7 +164,7 @@ vector<Issue *> Reningsverk::findIssues(const IssueState &state) {
 }
 
 Issue *Reningsverk::findIssue(const Initiative &i) {
-  auto v = lqfb(GET, "/issue", {{"issue_id", i.issueId()}})["result"];
+  auto v = lqfb(GET, API + "/issue", {{"issue_id", i.issueId()}})["result"];
   if(v.size() != 1) throw std::runtime_error("issue-by-id returned non-one-sized result");
 
   Issue *ret = encache(issueCache, v[0]);
@@ -118,19 +176,17 @@ Issue *Reningsverk::findIssue(const Initiative &i) {
 vector<Initiative *> Reningsverk::findInitiatives(const Issue &) {
   vector<Initiative *> ret;
   throw std::logic_error("FIXME TODO");
-//   auto v = lqfb(GET, "/initiative", {{"issue_id", issue.id()}})["result"];
+//   auto v = lqfb(GET, API + "/initiative", {{"issue_id", issue.id()}})["result"];
 //   for(auto &i: v) ret.push_back(Initiative(*this, i));
 //  return ret;
 }
 
 Draft *Reningsverk::findCurrentDraft(const Initiative &i) {
-  auto v = lqfb(GET, "/draft", {{"initiative_id", i.id()}, {"current_draft", "1"}})["result"];
+  auto v = lqfb(GET, API + "/draft", {{"initiative_id", i.id()}, {"current_draft", "1"}})["result"];
   if(v.size() != 1) throw std::runtime_error("Initiative has not exactly one current draft");
 
   for(auto &i: v) {
-    if(draftCache.find(str(i["id"])) == draftCache.end()) {
-      draftCache[str(i["id"])] = unique_ptr<Draft>(new Draft(*this, i));
-    }
+    encache(draftCache, i);
 
     cout << i << endl;
     if(initiativeCache.find(str(i["initiative_id"])) == initiativeCache.end()) throw std::runtime_error("Server returned data which was not requested");
@@ -144,7 +200,7 @@ Draft *Reningsverk::findCurrentDraft(const Initiative &i) {
 
 vector<Suggestion *> Reningsverk::findSuggestions(const Initiative &i) {
   vector<Suggestion *> ret;
-  auto v = lqfb(GET, "/suggestion", {{"initiative_id", i.id()}})["result"];
+  auto v = lqfb(GET, API + "/suggestion", {{"initiative_id", i.id()}})["result"];
 
   for(auto &i: v) {
     ret.push_back(encache(suggestionCache, i));
@@ -154,15 +210,45 @@ vector<Suggestion *> Reningsverk::findSuggestions(const Initiative &i) {
 }
 
 void Reningsverk::setOpinionDegree(const Suggestion &s, int degree) {
-  lqfb(POST, "/opinion", {{"suggestion_id", s.id()}, {"degree", str(degree)}});
+  // lqfb(POST, "/opinion", {{"suggestion_id", s.id()}, {"degree", str(degree)}});
+  lqfb(POST, WEB + "/opinion/update", {
+      {"suggestion_id", s.id()},
+      {"degree", str(degree)},
+      {"_webmcp_csrf_secret", csrfToken},
+      {"_webmcp_routing.default.view", "show"},
+      {"_webmcp_routing.default.params.initiative_id", str(s.initiativeId())},
+      {"_webmcp_routing.default.module", "suggestion"},
+      {"_webmcp_routing.default.mode", "redirect"},
+      {"_webmcp_routing.default.id", str(s.id())},
+      });
 }
 
 void Reningsverk::setOpinionFulfilment(const Suggestion &s, bool fulfilled) {
-  lqfb(POST, "/opinion", {{"suggestion_id", s.id()}, {"fulfilled", fulfilled? "1": "0"}});
+  // lqfb(POST, "/opinion", {{"suggestion_id", s.id()}, {"fulfilled", fulfilled? "1": "0"}});
+  lqfb(POST, WEB + "/opinion/update", {
+      {"suggestion_id", s.id()},
+      {"fulfilled", fulfilled? "true": "false"},
+      {"_webmcp_csrf_secret", csrfToken},
+      {"_webmcp_routing.default.view", "show"},
+      {"_webmcp_routing.default.params.initiative_id", str(s.initiativeId())},
+      {"_webmcp_routing.default.module", "suggestion"},
+      {"_webmcp_routing.default.mode", "redirect"},
+      {"_webmcp_routing.default.id", str(s.id())},
+      });
 }
 
 void Reningsverk::resetOpinion(const Suggestion &s) {
-  lqfb(POST, "/opinion", {{"suggestion_id", s.id()}, {"delete", "1"}});
+  // lqfb(POST, "/opinion", {{"suggestion_id", s.id()}, {"delete", "1"}});
+  lqfb(POST, WEB + "/opinion/update", {
+      {"suggestion_id", s.id()},
+      {"delete", "true"},
+      {"_webmcp_csrf_secret", csrfToken},
+      {"_webmcp_routing.default.view", "show"},
+      {"_webmcp_routing.default.params.initiative_id", str(s.initiativeId())},
+      {"_webmcp_routing.default.module", "suggestion"},
+      {"_webmcp_routing.default.mode", "redirect"},
+      {"_webmcp_routing.default.id", str(s.id())},
+      });
 }
 
 void Reningsverk::support(const Initiative &i, bool yes) {

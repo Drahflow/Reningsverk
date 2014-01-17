@@ -18,11 +18,7 @@
 
 class Reningsverk {
   public:
-    Reningsverk(const std::string &key);
-    Reningsverk(const char *key): Reningsverk(std::string(key)) { }
-
-    Reningsverk(Reningsverk &&r): key(r.key), httpSession(std::move(r.httpSession)),
-      sessionKey(r.sessionKey) { }
+    Reningsverk(const std::string &key, const std::string &user, const std::string &password);
 
     std::string getInfo();
     std::vector<Issue *> findIssues(const IssueState &);
@@ -39,19 +35,19 @@ class Reningsverk {
   private:
     constexpr static bool DUMP = true;
 
-    const std::string key;
     std::unique_ptr<Poco::Net::HTTPSClientSession> httpSession;
-
-    Json::Value sessionKey;
-
-    void fetchSessionKey();
+    std::map<std::string, std::string> httpCookies;
+    std::string sessionKey;
+    std::string csrfToken;
 
     enum Method {
       GET, POST
     };
 
+    std::istream &http(const Method &, const std::string &path,
+        const std::map<std::string, Json::Value> &data);
     Json::Value lqfb(const Method &, const std::string &path,
-        const std::map<std::string, Json::Value> &data, bool includeSessionKey = true);
+        const std::map<std::string, Json::Value> &data);
 
     std::string str(int i);
     std::string str(const Json::Value &v);
