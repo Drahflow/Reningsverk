@@ -1,11 +1,14 @@
 #include "terminalui.h"
 
+#include "tempfile.h"
+
 #include <iostream>
 #include <string>
 #include <unordered_map>
 #include <functional>
 #include <cstdio>
 #include <fstream>
+#include <iomanip>
 
 #include <stdlib.h>
 
@@ -18,20 +21,20 @@ string TerminalUI::readline() {
 }
 
 void TerminalUI::menuIssueSet(std::vector<Issue *> v) {
-  char k = 'a';
-  std::map<char, Initiative *> inis;
-
-  for(auto &i: v) {
-    for(auto &j: i->findInitiatives()) {
-      inis[k] = j;
-      k = nextKey(k);
-    }
-  }
-
   bool run = true;
   while(run) {
-    Choices c;
     std::string k = "a";
+    std::map<char, Initiative *> inis;
+
+    for(auto &i: v) {
+      for(auto &j: i->findInitiatives()) {
+        inis[k[0]] = j;
+        k[0] = nextKey(k[0]);
+      }
+    }
+
+    Choices c;
+    k = "a";
 
     c[""] = [&]{ run = false; };
     c["help"] = [] {
@@ -48,24 +51,13 @@ void TerminalUI::menuIssueSet(std::vector<Issue *> v) {
       if(a == inis.end()) throw user_error("initative does not exist");
       if(b == inis.end()) throw user_error("initative does not exist");
 
-      const char *TMPDIR = getenv("TMPDIR");
-      if(!TMPDIR) TMPDIR = "/tmp";
+      Tempfile aFile, bFile;
 
-      unique_ptr<char> aName(strdup((TMPDIR + std::string("/abcdXXXXXX")).c_str()));
-      unique_ptr<char> bName(strdup((TMPDIR + std::string("/abcdXXXXXX")).c_str()));
-      int aFd = mkstemp(aName.get());
-      int bFd = mkstemp(bName.get());
+      ofstream(aFile.name()) << "===" << a->second->name() << "===" << endl << a->second->currentDraft()->content() << endl;
+      ofstream(bFile.name()) << "===" << b->second->name() << "===" << endl << b->second->currentDraft()->content() << endl;
 
-      ofstream(aName.get()) << "===" << a->second->name() << "===" << endl << a->second->currentDraft()->content() << endl;
-      ofstream(bName.get()) << "===" << b->second->name() << "===" << endl << b->second->currentDraft()->content() << endl;
-
-      std::string cmd = std::string("${DIFF:-vimdiff} '") + aName.get() + "' '" + bName.get() + "'";
+      std::string cmd = std::string("${DIFF:-diff -u} '") + aFile.name() + "' '" + bFile.name() + "'";
       system(cmd.c_str());
-
-      unlink(aName.get());
-      unlink(bName.get());
-      close(aFd);
-      close(bFd);
     };
 
     for(auto &i: v) {
@@ -73,7 +65,21 @@ void TerminalUI::menuIssueSet(std::vector<Issue *> v) {
       c[i->id()] = [=]{ menuIssue(i); };
 
       for(auto &j: i->findInitiatives()) {
-        cout << k << ") " << j->name() << endl;
+        char stateChar = '.';
+        if(j->amSupporter()) stateChar = 's';
+        if(j->isRevoked()) stateChar = 'R';
+
+        cout << k << ") "
+          << setw(4) << j->supporterCount()
+          << "/" << setw(4) << j->satisfiedSupporterCount()
+          << " " << stateChar
+          << "  " << j->name() << endl;
+        if(j->note() != "") {
+          istringstream note(j->note());
+          string output;
+          getline(note, output);
+          cout << "                " << output << endl;
+        }
         c[k] = [=]{ menuInitiative(j); };
         if(inis[k[0]] != j) throw logic_error("initiative iteration diverged");
 
@@ -89,15 +95,15 @@ void TerminalUI::menuIssue(Issue *) {
 }
 
 void TerminalUI::menuInitiative(Initiative *i) {
-  std::map<char, Suggestion *> sugs;
-  char k = 'a';
-  for(auto &j: i->findSuggestions()) {
-    sugs[k] = j;
-    k = nextKey(k);
-  }
-
   bool run = true;
   while(run) {
+    std::map<char, Suggestion *> sugs;
+    char k = 'a';
+    for(auto &j: i->findSuggestions()) {
+      sugs[k] = j;
+      k = nextKey(k);
+    }
+
     Choices c;
     c[""] = [&]{ run = false; };
     c["help"] = [=] {
@@ -106,6 +112,9 @@ void TerminalUI::menuInitiative(Initiative *i) {
           i->findIssue()->state() == IssueState::DISCUSSION) {
         cout << "sup - support initiative" << endl;
         cout << "rej - reject (un-support) initiative" << endl;
+        cout << "com - create comment (suggestion)" << endl;
+        cout << "note - edit the private note, create if necessary" << endl;
+        cout << "fork - create a new initiative based upon this one" << endl;
       }
     };
 
@@ -113,6 +122,131 @@ void TerminalUI::menuInitiative(Initiative *i) {
         i->findIssue()->state() == IssueState::DISCUSSION) {
       c["sup"] = [=] { i->support(true); };
       c["rej"] = [=] { i->support(false); };
+      c["note"] = [=] {
+        Tempfile tmp;
+        {
+          ofstream txt(tmp.name());
+
+          istringstream note(i->note());
+          {
+            string line;
+            while(getline(note, line)) {
+              if(line.size() > 0 && line[line.size() - 1] == '\r') line = line.substr(0, line.size() - 1);
+              txt << line << endl;
+            }
+          }
+          if(i->note() == "") txt << endl;
+          txt << "# Lines starting in # are ignored..." << endl
+            << "#" << endl;
+          txt << "# " << i->name() << endl;
+          istringstream content(i->currentDraft()->content());
+          string line;
+          while(getline(content, line)) {
+            if(line.size() > 0 && line[line.size() - 1] == '\r') line = line.substr(0, line.size() - 1);
+            txt << "# " << line << endl;
+          }
+        }
+
+        std::string cmd = std::string("${EDITOR:-vim} '") + tmp.name() + "'";
+        system(cmd.c_str());
+
+        {
+          ifstream txt(tmp.name());
+          string note;
+          string line;
+          while(getline(txt, line)) {
+            if(!line.empty() && line[0] == '#') continue;
+            note += line + "\r\n";
+          }
+
+          i->setNote(note);
+        }
+      };
+      c["com"] = [=] {
+        Tempfile tmp;
+        {
+          ofstream txt(tmp.name());
+
+          txt << "Title of the suggestion" << endl
+            << "The text of the suggestion goes here," << endl
+            << "and in the following lines." << endl
+            << "# Lines starting in # are ignored..." << endl
+            << "#" << endl;
+          txt << "# " << i->name() << endl;
+          istringstream content(i->currentDraft()->content());
+          string line;
+          while(getline(content, line)) {
+            if(line.size() > 0 && line[line.size() - 1] == '\r') line = line.substr(0, line.size() - 1);
+            txt << "# " << line << endl;
+          }
+        }
+
+        std::string cmd = std::string("${EDITOR:-vim} '") + tmp.name() + "'";
+        system(cmd.c_str());
+
+        {
+          ifstream txt(tmp.name());
+          string name;
+          if(!getline(txt, name)) throw user_error("no title supplied");
+
+          string content;
+          string line;
+          while(getline(txt, line)) {
+            if(!line.empty() && line[0] == '#') continue;
+            content += line + "\r\n";
+          }
+
+          if(name == "Title of the suggestion") throw user_error("title not changed");
+
+          i->createSuggestion(name, content);
+        }
+      };
+      c["fork"] = [=] {
+        Tempfile tmp;
+        {
+          ofstream txt(tmp.name());
+
+          txt << i->name() << endl;
+          istringstream content(i->currentDraft()->content());
+          string line;
+          while(getline(content, line)) {
+            if(line.size() > 0 && line[line.size() - 1] == '\r') line = line.substr(0, line.size() - 1);
+            txt << line << endl;
+          }
+
+          txt  << "# Lines starting in # are ignored..." << endl
+            << "#" << endl;
+          for(auto &i: sugs) {
+            txt << "# === " << i.second->name() << endl;
+            istringstream content(i.second->content());
+            string line;
+            while(getline(content, line)) {
+              if(line.size() > 0 && line[line.size() - 1] == '\r') line = line.substr(0, line.size() - 1);
+              txt << "# " << line << endl;
+            }
+          }
+        }
+
+        std::string cmd = std::string("${EDITOR:-vim} '") + tmp.name() + "'";
+        system(cmd.c_str());
+
+        {
+          ifstream txt(tmp.name());
+          string name;
+          if(!getline(txt, name)) throw user_error("no title supplied");
+
+          string content;
+          string line;
+          while(getline(txt, line)) {
+            if(!line.empty() && line[0] == '#') continue;
+            content += line + "\r\n";
+          }
+
+          if(name == i->name()) throw user_error("title not changed");
+
+          i->findIssue()->createInitiative(name, content);
+        }
+      };
     }
 
     std::string txt = i->currentDraft()->content();
@@ -130,11 +264,11 @@ void TerminalUI::menuInitiative(Initiative *i) {
 }
 
 void TerminalUI::menuSuggestion(Suggestion *s) {
-  cout << "===" << s->name() << "===" << endl;
-  cout << s->content() << endl;
-
   bool run = true;
   while(run) {
+    cout << "===" << s->name() << "===" << endl;
+    cout << s->content() << endl;
+
     Choices c;
     c[""] = [&]{ run = false; };
     c["help"] = [] {

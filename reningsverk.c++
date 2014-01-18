@@ -20,6 +20,9 @@ Reningsverk::Reningsverk(const string &key, const string &user, const string &pa
   httpSession{new HTTPSClientSession{HOST, HTTPSClientSession::HTTPS_PORT,
       new Context{Context::CLIENT_USE, "", "", "", Context::VERIFY_NONE, 9, true}}} {
 
+  if(!getenv("HOME")) throw runtime_error("no $HOME environment variable");
+  localData = unique_ptr<LocalStore>(new LocalStore(getenv("HOME") + std::string("/.reningsverk")));
+
   // TODO: this HTML "parsing" would be better done with a regex
   string loginString;
   istream &loginStream = http(GET, WEB + "/index/login.html", {});
@@ -113,7 +116,7 @@ Json::Value Reningsverk::lqfb(const Method &method, const std::string &path,
   istream &resStream = http(method, path, data);
   Json::Value ret;
   Json::Reader().parse(resStream, ret);
-  // if(DUMP) cout << ret.toStyledString() << endl;
+  if(DUMP) cout << ret.toStyledString() << endl;
   return ret;
 }
 
@@ -173,12 +176,21 @@ Issue *Reningsverk::findIssue(const Initiative &i) {
   return ret;
 }
 
-vector<Initiative *> Reningsverk::findInitiatives(const Issue &) {
+vector<Initiative *> Reningsverk::findInitiatives(const Issue &i) {
   vector<Initiative *> ret;
-  throw std::logic_error("FIXME TODO");
-//   auto v = lqfb(GET, API + "/initiative", {{"issue_id", issue.id()}})["result"];
-//   for(auto &i: v) ret.push_back(Initiative(*this, i));
-//  return ret;
+
+  auto v = lqfb(GET, API + "/initiative", {{"issue_id", i.id()}})["result"];
+  for(auto &i: v) {
+    Initiative *ini = encache(initiativeCache, i);
+    ret.push_back(ini);
+
+    cout << i << endl;
+    if(issueCache.find(str(i["issue_id"])) == issueCache.end()) throw std::runtime_error("Server returned data which was not requested");
+    issueCache[str(i["issue_id"])]->cacheInitiative(initiativeCache[str(i["id"])].get());
+    ini->cacheIssue(issueCache[str(i["issue_id"])].get());
+  }
+  
+  return ret;
 }
 
 Draft *Reningsverk::findCurrentDraft(const Initiative &i) {
@@ -262,6 +274,66 @@ void Reningsverk::support(const Initiative &i, bool yes) {
       {"_webmcp_routing.default.id", i.id()},
       {"_webmcp_id", i.id()},
       });
+
+  initiativeCache[i.id()]->flushCacheAmSupporter();
+}
+
+void Reningsverk::createSuggestion(const Initiative &i, const string &name, const string &content) {
+  lqfb(POST, WEB + "/suggestion/add", {
+      {"name", name},
+      {"initiative_id", i.id()},
+      {"formatting_engine", "rocketwiki"},
+      {"degree", "1"},
+      {"content", content},
+      {"_webmcp_csrf_secret", csrfToken},
+      {"_webmcp_routing.default.view", "show"},
+      {"_webmcp_routing.default.params.tab", "suggestions"},
+      {"_webmcp_routing.default.module", "initiative"},
+      {"_webmcp_routing.default.mode", "redirect"},
+      {"_webmcp_routing.default.id", i.id()},
+      });
+}
+
+void Reningsverk::createInitiative(const Issue &i, const string &name, const string &content) {
+  lqfb(POST, WEB + "/initiative/create", {
+      {"name", name},
+      {"issue_id", i.id()},
+      {"formatting_engine", "rocketwiki"},
+      {"draft", content},
+      {"discussion_url", ""},
+      {"area_id", i.areaId()},
+      {"_webmcp_csrf_secret", csrfToken},
+      {"_webmcp_routing.default.view", "new"},
+      {"_webmcp_routing.default.module", "initiative"},
+      {"_webmcp_routing.default.mode", "forward"},
+      });
+
+  issueCache[i.id()]->flushCacheInitative();
+}
+
+bool Reningsverk::amSupporter(const Initiative &i) {
+  // bool supporting = lqfb(GET, API + "/supporter", {
+  //     {"initiative_id", i.id()},
+  //     {"unit_id", "1"}
+  //     })["results"].size() > 0;
+  
+  for(auto &i: initiativeCache) i.second->cacheAmSupporter(false);
+
+  istream &html = http(GET, WEB + "/index/index.html?tab=open&filter_interest=supported&filter_delegation=any", {});
+  bool support = false;
+  while(html) {
+    string tok;
+    html >> tok;
+    if(tok == "class=\"initiative\"><div") support = false;
+    if(tok == "src=\"../static/icons/16/thumb_up_green.png\"") support = true;
+    if(support && tok.substr(0, 25) == "class=\"initiative_link\">i") {
+      auto supportedIni = tok.substr(25, tok.size() - 25 - 1);
+      auto cache = initiativeCache.find(supportedIni);
+      if(cache != initiativeCache.end()) cache->second->cacheAmSupporter(true);
+    }
+  }
+
+  return initiativeCache[i.id()]->amSupporter();
 }
 
 std::string Reningsverk::str(int i) {

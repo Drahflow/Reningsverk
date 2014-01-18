@@ -9,7 +9,16 @@ void Issue::cacheInitiative(Initiative *i) {
   initiativeCacheValid = true;
 }
 
+void Issue::flushCacheInitative() {
+  initiativeCache.clear();
+  initiativeCacheValid = false;
+}
+
 vector<Initiative *> Issue::findInitiatives() const {
   if(initiativeCacheValid) return initiativeCache;
   return r.findInitiatives(*this);
+}
+
+void Issue::createInitiative(const std::string &name, const std::string &content) const {
+  return r.createInitiative(*this, name, content);
 }

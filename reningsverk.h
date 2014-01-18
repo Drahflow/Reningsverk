@@ -2,6 +2,7 @@
 #define RENINGSVERK_H
 
 #include "issue.h"
+#include "localstore.h"
 
 #include <string>
 #include <vector>
@@ -15,6 +16,7 @@
 #include <Poco/Net/Context.h>
 #include <Poco/StreamCopier.h>
 #include <jsoncpp/json/json.h>
+#include <sqlite3.h>
 
 class Reningsverk {
   public:
@@ -26,19 +28,26 @@ class Reningsverk {
     std::vector<Initiative *> findInitiatives(const Issue &);
     Draft *findCurrentDraft(const Initiative &);
     std::vector<Suggestion *> findSuggestions(const Initiative &);
+    bool amSupporter(const Initiative &);
 
     void support(const Initiative &, bool yes);
+    void createSuggestion(const Initiative &, const std::string &name, const std::string &content);
+    void createInitiative(const Issue &, const std::string &name, const std::string &content);
     void setOpinionDegree(const Suggestion &, int degree);
     void setOpinionFulfilment(const Suggestion &, bool fulfilled);
     void resetOpinion(const Suggestion &);
 
+    std::string getLocal(const std::string &key) { return localData->get(key); }
+    void setLocal(const std::string &key, const std::string &value) { return localData->set(key, value); }
+
   private:
-    constexpr static bool DUMP = true;
+    bool DUMP = true;
 
     std::unique_ptr<Poco::Net::HTTPSClientSession> httpSession;
     std::map<std::string, std::string> httpCookies;
     std::string sessionKey;
     std::string csrfToken;
+    std::unique_ptr<LocalStore> localData;
 
     enum Method {
       GET, POST

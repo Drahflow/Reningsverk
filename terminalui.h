@@ -87,9 +87,7 @@ class TerminalUI {
 
         for(auto c: iteration) {
           presuppliedInput = savedArgs;
-          // TODO: Why does the obvious way not work?
-          auto presuppliedInputPtr = &presuppliedInput;
-          auto raii = make_raii([=] () { presuppliedInputPtr->clear(); });
+          auto raii = make_raii([&] () mutable { presuppliedInput.clear(); });
 
           std::cout << "Handling Iteration " << c << std::endl;
           m.find(std::string() + c)->second();

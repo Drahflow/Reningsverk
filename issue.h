@@ -35,6 +35,11 @@ class Issue {
       str << data["id"].asUInt();
       return str.str();
     };
+    std::string areaId() const {
+      std::ostringstream str;
+      str << data["area_id"].asUInt();
+      return str.str();
+    };
     IssueState state() const {
       if(data["state"] == "admission") return IssueState::ADMISSION;
       if(data["state"] == "discussion") return IssueState::DISCUSSION;
@@ -51,8 +56,11 @@ class Issue {
       throw std::runtime_error("invalid issue state");
     }
 
+    void createInitiative(const std::string &name, const std::string &title) const;
+
     // if called, must be called for all initiatives
     void cacheInitiative(Initiative *);
+    void flushCacheInitative();
 
   private:
     Reningsverk &r;

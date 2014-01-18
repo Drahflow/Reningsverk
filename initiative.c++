@@ -19,3 +19,20 @@ Issue *Initiative::findIssue() const {
 void Initiative::support(bool yes) const {
   r.support(*this, yes);
 }
+
+void Initiative::createSuggestion(const std::string &name, const std::string &content) const {
+  return r.createSuggestion(*this, name, content);
+}
+
+bool Initiative::amSupporter() const {
+  if(amSupporterCache) return amSupporterCache == 1;
+  return r.amSupporter(*this);
+}
+
+std::string Initiative::note() const {
+  return r.getLocal("ini." + id() + ".note");
+}
+
+void Initiative::setNote(const std::string &note) const {
+  return r.setLocal("ini." + id() + ".note", note);
+}
