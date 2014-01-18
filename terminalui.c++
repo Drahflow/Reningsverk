@@ -40,7 +40,8 @@ void TerminalUI::menuIssueSet(std::vector<Issue *> v) {
       cout << "diff - compare two initiatives" << endl;
     };
     c["diff"] = [=] {
-      if(args[0].size() != 2) throw user_error("usage: diff xy     - x and y being initiative keys");
+      if(args.size() != 1 || args[0].size() != 2)
+        throw user_error("usage: diff xy     - x and y being initiative keys");
 
       auto a = inis.find(args[0][0]);
       auto b = inis.find(args[0][1]);
@@ -103,7 +104,7 @@ void TerminalUI::menuInitiative(Initiative *i) {
       cout << "<letter> - select suggestion" << endl;
       if(i->findIssue()->state() == IssueState::DISCUSSION) {
         cout << "sup - support initiative" << endl;
-        cout << "rej - reject initiative" << endl;
+        cout << "rej - reject (un-support) initiative" << endl;
       }
     };
 
@@ -166,6 +167,10 @@ void TerminalUI::operator() () {
           cout << "admi - select all issues in admission" << endl;
           cout << "disc - select all issues in discussion" << endl;
           cout << "vote - select all issues in voting" << endl;
+          cout << endl;
+          cout << "syntax" << endl;
+          cout << "*xy... <command> <args...>" << endl;
+          cout << "     - execute <command> for each x, y, ..." << endl;
         }},
         { "info", [=]{ cout << r.getInfo() << endl; }},
         { "admi", [=]{ menuIssueSet(r.findIssues(IssueState::ADMISSION)); }},

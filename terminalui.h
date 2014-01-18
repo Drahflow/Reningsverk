@@ -30,34 +30,72 @@ class TerminalUI {
 
     std::string readline();
 
-    std::vector<std::string> args; // arguments of user input
+    std::string command; // command from user input
+    std::vector<std::string> args; // arguments from user input
+
+    std::vector<std::string> presuppliedInput;
 
     template<typename M> void handleChoice(const std::string &prompt, const M &m) {
-      while(!std::cin.eof()) {
-        try {
-          std::cout << prompt << "> " << std::flush;
+      if(presuppliedInput.size()) {
+        std::cout << prompt << "> ";
+        for(auto &s: presuppliedInput) std::cout << s << " ";
+        std::cout << std::endl;
 
-          std::istringstream input(readline());
-          std::string command;
-          input >> command;
+        command = presuppliedInput[0];
+        args.clear();
 
-          args.clear();
-          copy(std::istream_iterator<std::string>(input),
-              std::istream_iterator<std::string>(), std::back_inserter(args));
-          
-          auto c = m.find(command);
-          if(c == m.end()) throw user_error("no such command");
+        copy(presuppliedInput.begin() + 1, presuppliedInput.end(), std::back_inserter(args));
 
-          c->second();
-          return;
-        } catch(user_error &e) {
-          std::cout << e.what() << std::endl;
+        handleCommand(m);
+      } else {
+        while(!std::cin.eof()) {
+          try {
+            command = "";
+            args.clear();
+
+            std::cout << prompt << "> " << std::flush;
+
+            std::istringstream input(readline());
+            input >> command;
+
+            copy(std::istream_iterator<std::string>(input),
+                std::istream_iterator<std::string>(), std::back_inserter(args));
+            
+            handleCommand(m);
+            return;
+          } catch(user_error &e) {
+            std::cout << e.what() << std::endl;
+          }
         }
       }
 
       auto c = m.find("");
       if(c != m.end()) {
         c->second();
+      }
+    }
+
+    template<typename M> void handleCommand(const M &m) {
+      if(command[0] == '*') {
+        auto iteration = command.substr(1);
+        auto savedArgs = args;
+
+        for(auto c: iteration)
+          if(m.find(std::string() + c) == m.end())
+            throw user_error("no such command (in iteration range)");
+
+        for(auto c: iteration) {
+          presuppliedInput = savedArgs;
+          std::cout << "Handling Iteration " << c << std::endl;
+          m.find(std::string() + c)->second();
+          std::cout << "Done Iteration " << c << std::endl;
+          presuppliedInput.clear();
+        }
+      } else {
+        auto cmd = m.find(command);
+        if(cmd == m.end()) throw user_error("no such command: " + command);
+
+        cmd->second();
       }
     }
 
