@@ -210,7 +210,7 @@ vector<Suggestion *> Reningsverk::findSuggestions(const Initiative &i) {
 }
 
 void Reningsverk::setOpinionDegree(const Suggestion &s, int degree) {
-  // lqfb(POST, "/opinion", {{"suggestion_id", s.id()}, {"degree", str(degree)}});
+  // lqfb(POST, API + "/opinion", {{"suggestion_id", s.id()}, {"degree", str(degree)}});
   lqfb(POST, WEB + "/opinion/update", {
       {"suggestion_id", s.id()},
       {"degree", str(degree)},
@@ -224,7 +224,7 @@ void Reningsverk::setOpinionDegree(const Suggestion &s, int degree) {
 }
 
 void Reningsverk::setOpinionFulfilment(const Suggestion &s, bool fulfilled) {
-  // lqfb(POST, "/opinion", {{"suggestion_id", s.id()}, {"fulfilled", fulfilled? "1": "0"}});
+  // lqfb(POST, API + "/opinion", {{"suggestion_id", s.id()}, {"fulfilled", fulfilled? "1": "0"}});
   lqfb(POST, WEB + "/opinion/update", {
       {"suggestion_id", s.id()},
       {"fulfilled", fulfilled? "true": "false"},
@@ -238,7 +238,7 @@ void Reningsverk::setOpinionFulfilment(const Suggestion &s, bool fulfilled) {
 }
 
 void Reningsverk::resetOpinion(const Suggestion &s) {
-  // lqfb(POST, "/opinion", {{"suggestion_id", s.id()}, {"delete", "1"}});
+  // lqfb(POST, API + "/opinion", {{"suggestion_id", s.id()}, {"delete", "1"}});
   lqfb(POST, WEB + "/opinion/update", {
       {"suggestion_id", s.id()},
       {"delete", "true"},
@@ -252,7 +252,16 @@ void Reningsverk::resetOpinion(const Suggestion &s) {
 }
 
 void Reningsverk::support(const Initiative &i, bool yes) {
-  lqfb(POST, "/supporter", {{"initiative_id", i.id()}, {"draft_id", i.currentDraft()->id()}, {"delete", yes? "0": "1"}});
+  // lqfb(POST, API + "/supporter", {{"initiative_id", i.id()}, {"draft_id", i.currentDraft()->id()}, {"delete", yes? "0": "1"}});
+  lqfb(POST, WEB + "/initiative/" + (yes? "add_support": "remove_support"), {
+      {"_webmcp_csrf_secret", csrfToken},
+      {"_webmcp_routing.default.view", "show"},
+      {"_webmcp_routing.default.params.tab", "suggestions"},
+      {"_webmcp_routing.default.module", "initiative"},
+      {"_webmcp_routing.default.mode", "redirect"},
+      {"_webmcp_routing.default.id", i.id()},
+      {"_webmcp_id", i.id()},
+      });
 }
 
 std::string Reningsverk::str(int i) {
