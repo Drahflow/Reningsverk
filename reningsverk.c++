@@ -170,7 +170,7 @@ Issue *Reningsverk::findIssue(const Initiative &i) {
   auto v = lqfb(GET, API + "/issue", {{"issue_id", i.issueId()}})["result"];
   if(v.size() != 1) throw std::runtime_error("issue-by-id returned non-one-sized result");
 
-  Issue *ret = encache(issueCache, v[0]);
+  Issue *ret = encache(issueCache, v[0u]);
   initiativeCache[i.id()]->cacheIssue(ret);
 
   return ret;
