@@ -2,6 +2,7 @@
 #define TERMINALUI_H
 
 #include "reningsverk.h"
+#include "raii.h"
 
 #include <string>
 #include <iostream>
@@ -86,10 +87,13 @@ class TerminalUI {
 
         for(auto c: iteration) {
           presuppliedInput = savedArgs;
+          // TODO: Why does the obvious way not work?
+          auto presuppliedInputPtr = &presuppliedInput;
+          auto raii = make_raii([=] () { presuppliedInputPtr->clear(); });
+
           std::cout << "Handling Iteration " << c << std::endl;
           m.find(std::string() + c)->second();
           std::cout << "Done Iteration " << c << std::endl;
-          presuppliedInput.clear();
         }
       } else {
         auto cmd = m.find(command);

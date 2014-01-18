@@ -102,13 +102,15 @@ void TerminalUI::menuInitiative(Initiative *i) {
     c[""] = [&]{ run = false; };
     c["help"] = [=] {
       cout << "<letter> - select suggestion" << endl;
-      if(i->findIssue()->state() == IssueState::DISCUSSION) {
+      if(i->findIssue()->state() == IssueState::ADMISSION ||
+          i->findIssue()->state() == IssueState::DISCUSSION) {
         cout << "sup - support initiative" << endl;
         cout << "rej - reject (un-support) initiative" << endl;
       }
     };
 
-    if(i->findIssue()->state() == IssueState::DISCUSSION) {
+    if(i->findIssue()->state() == IssueState::ADMISSION ||
+        i->findIssue()->state() == IssueState::DISCUSSION) {
       c["sup"] = [=] { i->support(true); };
       c["rej"] = [=] { i->support(false); };
     }
