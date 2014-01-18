@@ -56,7 +56,7 @@ void TerminalUI::menuIssueSet(std::vector<Issue *> v) {
       ofstream(aFile.name()) << "===" << a->second->name() << "===" << endl << a->second->currentDraft()->content() << endl;
       ofstream(bFile.name()) << "===" << b->second->name() << "===" << endl << b->second->currentDraft()->content() << endl;
 
-      std::string cmd = std::string("${DIFF:-diff -u} '") + aFile.name() + "' '" + bFile.name() + "'";
+      std::string cmd = std::string("${DIFF:-vimdiff} '") + aFile.name() + "' '" + bFile.name() + "'";
       system(cmd.c_str());
     };
 
