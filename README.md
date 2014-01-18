@@ -1,7 +1,7 @@
 Reningsverk
 ===========
 
-A command-line liquid-feedback client.
+Deal with liquid feedback. Like a professional. A command-line liquid-feedback client.
 
 
 Features
