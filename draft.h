@@ -19,6 +19,9 @@ class Draft {
     std::string content() const { return data["content"].asString(); }
     std::string created() const { return data["created"].asString(); }
 
+    bool seen() const;
+    void setSeen(bool yes) const;
+
   private:
     Reningsverk &r;
     Json::Value data;

@@ -38,5 +38,5 @@ std::string Initiative::note() const {
 }
 
 void Initiative::setNote(const std::string &note) const {
-  return r.setLocal("ini." + id() + ".note", note);
+  r.setLocal("ini." + id() + ".note", note);
 }

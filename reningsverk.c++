@@ -188,13 +188,34 @@ vector<Issue *> Reningsverk::findIssues(const IssueState &state) {
 
   if(any) {
     auto v2 = lqfb(GET, API + "/initiative", {{"issue_id", newIssues.str()}})["result"];
+    std::vector<Initiative *> loadedInis;
     for(auto &i: v2) {
       Initiative *ini = encache(initiativeCache, i);
+      loadedInis.push_back(ini);
 
       cout << i << endl;
       if(issueCache.find(str(i["issue_id"])) == issueCache.end()) throw std::runtime_error("Server returned data which was not requested");
       issueCache[str(i["issue_id"])]->cacheInitiative(initiativeCache[str(i["id"])].get());
       ini->cacheIssue(issueCache[str(i["issue_id"])].get());
+    }
+
+    if(!loadedInis.empty()) {
+      bool any = false;
+      ostringstream iniIds;
+      for(auto &i: loadedInis) {
+        if(any) iniIds << ",";
+        any = true;
+        iniIds << i->id();
+      }
+
+      auto v3 = lqfb(GET, API + "/draft", {{"initiative_id", iniIds.str()}, {"current_draft", "1"}})["result"];
+      if(v3.size() != loadedInis.size()) throw runtime_error("no 1-1 correspondence between initiatives and current drafts");
+      for(auto &i: v3) {
+        encache(draftCache, i);
+
+        if(initiativeCache.find(str(i["initiative_id"])) == initiativeCache.end()) throw std::runtime_error("Server returned data which was not requested");
+        initiativeCache[str(i["initiative_id"])]->cacheCurrentDraft(draftCache[str(i["id"])].get());
+      }
     }
   }
 

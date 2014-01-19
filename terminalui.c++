@@ -92,17 +92,19 @@ template<> void TerminalUI::menuContent<vector<Issue *>>(const vector<Issue *> &
       char stateChar = '.';
       if(j->amSupporter()) stateChar = 's';
       if(j->isRevoked()) stateChar = 'R';
+      char newChar = '.';
+      if(!j->currentDraft()->seen()) newChar = 'u';
 
       cout << k << ") "
         << setw(4) << j->supporterCount()
         << "/" << setw(4) << j->satisfiedSupporterCount()
-        << " " << stateChar
+        << " " << stateChar << newChar
         << "  " << j->name() << endl;
       if(j->note() != "") {
         istringstream note(j->note());
         string output;
         getline(note, output);
-        cout << "                " << output << endl;
+        cout << "                 " << output << endl;
       }
       c[k] = [=]{ menu(j); };
       if(inis[k[0]] != j) throw logic_error("initiative iteration diverged");
@@ -113,14 +115,16 @@ template<> void TerminalUI::menuContent<vector<Issue *>>(const vector<Issue *> &
 }
 
 template<> void TerminalUI::menuHelp<vector<Issue *>>(const vector<Issue *> &, Choices &) {
-  cout << "^  ^^^^ ^^^^ ^  ^^^^^^" << endl;
-  cout << "|   |    |   |     |  " << endl;
-  cout << "|   |    |   |     '-- title of the initiative" << endl;
-  cout << "|   |    |   '-------- initative is [s]upported by you" << endl;
-  cout << "|   |    |             initative is [R]evoked by authors" << endl;
-  cout << "|   |    '------------ number of satisfied supporters (no outstanding suggestions)" << endl;
-  cout << "|   '----------------- number of supporters" << endl;
-  cout << "'--------------------- type this letter to select initiative" << endl;
+  cout << "^  ^^^^ ^^^^ ^^  ^^^^^^" << endl;
+  cout << "|   |    |   ||     |  " << endl;
+  cout << "|   |    |   ||     '-- title of the initiative" << endl;
+  cout << "|   |    |   ||         private note below title" << endl;
+  cout << "|   |    |   |'-------- initiative has an [u]nseen current draft" << endl;
+  cout << "|   |    |   '--------- initative is [s]upported by you" << endl;
+  cout << "|   |    |              initative is [R]evoked by authors" << endl;
+  cout << "|   |    '------------- number of satisfied supporters (no outstanding suggestions)" << endl;
+  cout << "|   '------------------ number of supporters" << endl;
+  cout << "'---------------------- type this letter to select initiative" << endl;
   cout << "=== Available commands ===" << endl;
   cout << "<number> - select issue" << endl;
   cout << "<letter> - select initiative" << endl;
@@ -269,12 +273,17 @@ template<> void TerminalUI::menuContent<Initiative *>(Initiative *const & i, Cho
   }
 
   c["vers"] = [=] { menu(i->findDrafts()); };
+  c["seen"] = [=] { i->currentDraft()->setSeen(true); };
+  c["unseen"] = [=] { i->currentDraft()->setSeen(false); };
 
   std::string txt = i->currentDraft()->content();
   cout << "===" << i->name() << "===" << endl;
   cout << txt << endl;
-  cout << "=== Suggestions ===" << endl;
 
+  cout << "=== Private Notes ===" << endl;
+  cout << i->note() << endl;
+
+  cout << "=== Suggestions ===" << endl;
   for(auto &i: sugs) {
     cout << i.first << ") " << i.second->name() << endl;
     c[std::string() + i.first] = [=]{ menu(i.second); };
@@ -297,6 +306,8 @@ template<> void TerminalUI::menuHelp<Initiative *>(Initiative *const & i, Choice
     cout << "fork - create a new initiative based upon this one" << endl;
   }
   cout << "vers - show historical draft versions" << endl;
+  cout << "seen - set current draft as seen" << endl;
+  cout << "unseen - set current draft as unseen" << endl;
 }
 
 template<> std::string TerminalUI::menuPrompt<Initiative *>() { return "Initiative"; }
@@ -332,7 +343,11 @@ template<> void TerminalUI::menuContent<vector<Draft *>>(const vector<Draft *> &
   std::map<char, Draft *> draftMap;
 
   for(auto &i: drafts) {
-    cout << k << ") " << i->created() << endl;
+    char newChar = '.';
+    if(!i->seen()) newChar = 'u';
+
+    cout << k << ") " << newChar << " " << i->created() << endl;
+    c[std::string() + k] = [=] { menu(i); };
     draftMap[k] = i;
     k = nextKey(k);
   }
@@ -351,15 +366,36 @@ template<> void TerminalUI::menuContent<vector<Draft *>>(const vector<Draft *> &
 }
 
 template<> void TerminalUI::menuHelp<vector<Draft *>>(const vector<Draft *> &, Choices &) {
-  cout << "^  ^^^^^^^^" << endl;
-  cout << "|      |" << endl;
-  cout << "|      '-- when the draft was created" << endl;
-  cout << "'--------- draft identifiers" << endl;
+  cout << "^  ^ ^^^^^^^^" << endl;
+  cout << "|  |     |" << endl;
+  cout << "|  |     '-- when the draft was created" << endl;
+  cout << "|  '-------- draft is [u]nseen" << endl;
+  cout << "'----------- draft identifiers" << endl;
   cout << "=== Available Commands ===" << endl;
   cout << "diff xy - compare drafts x and y" << endl;
 }
 
 template<> std::string TerminalUI::menuPrompt<vector<Draft *>>() { return "DraftSet"; }
+
+template<> void TerminalUI::menuContent<Draft *>(Draft *const &d, Choices &c) {
+  cout << d->content() << endl;
+  if(d->seen()) {
+    cout << "You have marked this draft as seen." << endl;
+  } else {
+    cout << "This draft is unseen." << endl;
+  }
+
+  c["seen"] = [=] { d->setSeen(true); };
+  c["unseen"] = [=] { d->setSeen(false); };
+}
+
+template<> void TerminalUI::menuHelp<Draft *>(Draft *const &, Choices &) {
+  cout << "=== Available Commands ===" << endl;
+  cout << "seen - mark this draft as seen" << endl;
+  cout << "unseen - mark this draft as unseen" << endl;
+}
+
+template<> std::string TerminalUI::menuPrompt<Draft *>() { return "Draft"; }
 
 template<> void TerminalUI::menuContent<vector<Area *>>(const vector<Area *> &areas, Choices &c) {
   std::map<char, Area *> areaMap;
