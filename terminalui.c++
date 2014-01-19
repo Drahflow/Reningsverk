@@ -92,13 +92,13 @@ template<> void TerminalUI::menuContent<vector<Issue *>>(const vector<Issue *> &
       char stateChar = '.';
       if(j->amSupporter()) stateChar = 's';
       if(j->isRevoked()) stateChar = 'R';
-      char newChar = '.';
-      if(!j->currentDraft()->seen()) newChar = 'u';
+      char seenChar = '.';
+      if(!j->currentDraft()->seen()) seenChar = 'u';
 
       cout << k << ") "
         << setw(4) << j->supporterCount()
         << "/" << setw(4) << j->satisfiedSupporterCount()
-        << " " << stateChar << newChar
+        << " " << stateChar << seenChar
         << "  " << j->name() << endl;
       if(j->note() != "") {
         istringstream note(j->note());
@@ -285,16 +285,19 @@ template<> void TerminalUI::menuContent<Initiative *>(Initiative *const & i, Cho
 
   cout << "=== Suggestions ===" << endl;
   for(auto &i: sugs) {
-    cout << i.first << ") " << i.second->name() << endl;
+    char seenChar = '.';
+    if(!i.second->seen()) seenChar = 'u';
+    cout << i.first << ") " << seenChar << " " << i.second->name() << endl;
     c[std::string() + i.first] = [=]{ menu(i.second); };
   }
 }
 
 template<> void TerminalUI::menuHelp<Initiative *>(Initiative *const & i, Choices &) {
-  cout << "^  ^^^^^^^" << endl;
-  cout << "|      |" << endl;
-  cout << "|      '-- title of suggestion" << endl;
-  cout << "'--------- type this letter to access suggestion" << endl;
+  cout << "^  ^ ^^^^^^^" << endl;
+  cout << "|  |     |" << endl;
+  cout << "|  |     '-- title of suggestion" << endl;
+  cout << "|  '-------- suggestion is [u]nseen" << endl;
+  cout << "'----------- type this letter to access suggestion" << endl;
   cout << "=== Available Commands ===" << endl;
   cout << "<letter> - select suggestion" << endl;
   if(i->findIssue()->state() == IssueState::ADMISSION ||
@@ -323,6 +326,8 @@ template<> void TerminalUI::menuContent<Suggestion *>(Suggestion *const &s, Choi
     c["f"] = [=] { s->setOpinion(Suggestion::FULFILLED); };
     c["u"] = [=] { s->setOpinion(Suggestion::UNFULFILLED); };
     c["n"] = [=] { s->resetOpinion(); };
+    c["seen"] = [=] { s->setSeen(true); };
+    c["unseen"] = [=] { s->setSeen(false); };
 }
 
 template<> void TerminalUI::menuHelp<Suggestion *>(Suggestion *const &, Choices &) {
@@ -333,7 +338,9 @@ template<> void TerminalUI::menuHelp<Suggestion *>(Suggestion *const &, Choices 
   cout << "m - mark suggestion as 'must'" << endl;
   cout << "f - mark suggestion as 'fulfilled'" << endl;
   cout << "u - mark suggestion as 'unfulfilled'" << endl;
-  cout << "n - remove mark on suggestion" << endl;
+  cout << "n - remove all marks on suggestion" << endl;
+  cout << "seen - set suggestion to seen" << endl;
+  cout << "unseen - set suggestion to unseen" << endl;
 }
 
 template<> std::string TerminalUI::menuPrompt<Suggestion *>() { return "Suggestion"; }
@@ -343,10 +350,10 @@ template<> void TerminalUI::menuContent<vector<Draft *>>(const vector<Draft *> &
   std::map<char, Draft *> draftMap;
 
   for(auto &i: drafts) {
-    char newChar = '.';
-    if(!i->seen()) newChar = 'u';
+    char seenChar = '.';
+    if(!i->seen()) seenChar = 'u';
 
-    cout << k << ") " << newChar << " " << i->created() << endl;
+    cout << k << ") " << seenChar << " " << i->created() << endl;
     c[std::string() + k] = [=] { menu(i); };
     draftMap[k] = i;
     k = nextKey(k);

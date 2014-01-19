@@ -27,3 +27,11 @@ void Suggestion::setOpinion(const Fulfillment &f) {
 void Suggestion::resetOpinion() {
   r.resetOpinion(*this);
 }
+
+bool Suggestion::seen() const {
+  return r.getLocal("suggestion." + id() + ".seen") == "true";
+}
+
+void Suggestion::setSeen(bool seen) const {
+  r.setLocal("suggestion." + id() + ".seen", seen? "true": "false");
+}

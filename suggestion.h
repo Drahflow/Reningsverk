@@ -32,6 +32,9 @@ class Suggestion {
     void setOpinion(const Fulfillment &f);
     void resetOpinion();
 
+    bool seen() const;
+    void setSeen(bool yes) const;
+
   private:
     Reningsverk &r;
     Json::Value data;
