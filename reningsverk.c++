@@ -176,7 +176,6 @@ vector<Issue *> Reningsverk::findIssues(const IssueState &state) {
   auto v = lqfb(GET, API + "/issue", {{"issue_state", strState}})["result"];
   for(auto &i: v) {
     if(issueCache.find(str(i["id"])) == issueCache.end()) {
-      // issueCache.emplace({str(i["id"]), {new Issue(*this, i)});
       issueCache[str(i["id"])] = unique_ptr<Issue>(new Issue(*this, i));
 
       if(any) newIssues << ",";
@@ -185,6 +184,43 @@ vector<Issue *> Reningsverk::findIssues(const IssueState &state) {
     }
 
     ret.push_back(issueCache[str(i["id"])].get());
+  }
+
+  if(any) {
+    auto v2 = lqfb(GET, API + "/initiative", {{"issue_id", newIssues.str()}})["result"];
+    for(auto &i: v2) {
+      Initiative *ini = encache(initiativeCache, i);
+
+      cout << i << endl;
+      if(issueCache.find(str(i["issue_id"])) == issueCache.end()) throw std::runtime_error("Server returned data which was not requested");
+      issueCache[str(i["issue_id"])]->cacheInitiative(initiativeCache[str(i["id"])].get());
+      ini->cacheIssue(issueCache[str(i["issue_id"])].get());
+    }
+  }
+
+  return ret;
+}
+
+vector<Issue *> Reningsverk::findOpenIssues(const Area &area) {
+  ostringstream newIssues;
+  bool any = false;
+
+  areaCache[area.id()]->flushCacheOpenIssue();
+
+  vector<Issue *> ret;
+  auto v = lqfb(GET, API + "/issue", {{"area_id", area.id()}, {"issue_state", "open"}})["result"];
+  for(auto &i: v) {
+    if(issueCache.find(str(i["id"])) == issueCache.end()) {
+      issueCache[str(i["id"])] = unique_ptr<Issue>(new Issue(*this, i));
+
+      if(any) newIssues << ",";
+      any = true;
+      newIssues << str(i["id"]);
+    }
+
+    Issue *openIssue = issueCache[str(i["id"])].get();
+    areaCache[area.id()]->cacheOpenIssue(openIssue);
+    ret.push_back(openIssue);
   }
 
   if(any) {
@@ -360,6 +396,8 @@ void Reningsverk::createIssue(const Area &a, const Policy &p, const string &name
       {"_webmcp_routing.default.module", "initiative"},
       {"_webmcp_routing.default.mode", "forward"},
       });
+
+  areaCache[a.id()]->flushCacheOpenIssue();
 }
 
 bool Reningsverk::amSupporter(const Initiative &i) {

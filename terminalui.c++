@@ -389,10 +389,12 @@ template<> void TerminalUI::menuContent<Area *>(Area *const &a, Choices &c) {
 
   cout << "===" << a->name() << "===" << endl;
   cout << a->description() << endl;
+
+  menuContent(a->findOpenIssues(), c);
 }
 
-template<> void TerminalUI::menuHelp<Area *>(Area *const &, Choices &) {
-  cout << "=== Available Commands ===" << endl;
+template<> void TerminalUI::menuHelp<Area *>(Area *const &a, Choices &c) {
+  menuHelp(a->findOpenIssues(), c);
   cout << "prop - propose an initiative" << endl;
 }
 

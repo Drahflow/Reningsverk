@@ -26,6 +26,7 @@ class Reningsverk {
     std::string getInfo();
     std::vector<Area *> findAreas();
     std::vector<Issue *> findIssues(const IssueState &);
+    std::vector<Issue *> findOpenIssues(const Area &);
     std::vector<Policy *> findAllowedPolicies(const Area &);
     Issue *findIssue(const Initiative &);
     std::vector<Initiative *> findInitiatives(const Issue &);
