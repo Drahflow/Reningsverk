@@ -101,12 +101,10 @@ class TerminalUI {
       }
     }
 
-    void menuAreaSet(std::vector<Area *>);
-    void menuArea(Area *);
-    void menuIssueSet(std::vector<Issue *>);
-    void menuIssue(Issue *);
-    void menuInitiative(Initiative *);
-    void menuSuggestion(Suggestion *);
+    template<typename D> void menu(const D &);
+    template<typename D> void menuContent(const D &, Choices &);
+    template<typename D> void menuHelp(const D &, Choices &);
+    template<typename D> std::string menuPrompt();
 
     char nextKey(char);
 };
