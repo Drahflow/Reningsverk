@@ -7,10 +7,10 @@ Deal with liquid feedback. Like a professional. A command-line liquid-feedback c
 Features
 --------
 
-* All text.
+* All text. No rodents.
 * Edit things in your favorite $EDITOR.
-* Compare initiatives using your favorite $DIFF.
-* Apply commands across multiple initiatives and suggestions.
+* Compare initiatives and drafts using your favorite $DIFF.
+* Apply commands across multiple initiatives and suggestions (and general subentity-ish thingies).
 * Make private notes.
 * Fork existing initatives, or create brand new issues.
 * See what's new.
