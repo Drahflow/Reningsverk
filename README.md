@@ -13,12 +13,12 @@ Features
 * Apply commands across multiple initiatives and suggestions.
 * Make private notes.
 * Fork existing initatives, or create brand new issues.
+* See what's new.
 
 
 Planned
 -------
 
-* See what's new.
 * Voting phase. (There was no issue in voting while I coded this.)
 * Delegation tree analysis.
 * Suggestions based on earlier voting similarities.

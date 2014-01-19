@@ -12,6 +12,7 @@
 #include <jsoncpp/json/json.h>
 
 enum class IssueState {
+  OPEN, // pseude-state used for selection only
   ADMISSION,
   DISCUSSION,
   VERIFICATION,

@@ -507,6 +507,7 @@ void TerminalUI::operator() () {
     if(help) {
       cout << "help - display this" << endl;
       cout << "info - query lqfb instance for general info" << endl;
+      cout << "open - select all open issues" << endl;
       cout << "admi - select all issues in admission" << endl;
       cout << "disc - select all issues in discussion" << endl;
       cout << "vote - select all issues in voting" << endl;
@@ -523,6 +524,7 @@ void TerminalUI::operator() () {
     handleChoice("", Choices{
         { "help", [&]{ help = true; }},
         { "info", [=]{ cout << r.getInfo() << endl; }},
+        { "open", [=]{ menu(r.findIssues(IssueState::OPEN)); }},
         { "admi", [=]{ menu(r.findIssues(IssueState::ADMISSION)); }},
         { "disc", [=]{ menu(r.findIssues(IssueState::DISCUSSION)); }},
         { "vote", [=]{ menu(r.findIssues(IssueState::VOTING)); }},

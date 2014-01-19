@@ -163,6 +163,7 @@ vector<Policy *> Reningsverk::findAllowedPolicies(const Area &a) {
 vector<Issue *> Reningsverk::findIssues(const IssueState &state) {
   std::string strState;
   switch(state) {
+    case IssueState::OPEN: strState = "open"; break;
     case IssueState::ADMISSION: strState = "admission"; break;
     case IssueState::DISCUSSION: strState = "discussion"; break;
     case IssueState::VOTING: strState = "voting"; break;
