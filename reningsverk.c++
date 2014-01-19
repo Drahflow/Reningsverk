@@ -382,7 +382,6 @@ bool Reningsverk::amSupporter(const Initiative &i) {
       support = false;
       author = false;
     }
-    cout << tok << endl;
     if(tok == "src=\"../static/icons/16/thumb_up_green.png\"") support = true;
     if(tok == "src=\"../static/icons/16/user_edit.png\"") author = true;
     if(tok.substr(0, 25) == "class=\"initiative_link\">i") {
