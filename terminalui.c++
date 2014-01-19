@@ -22,6 +22,8 @@ string TerminalUI::readline() {
 
 void TerminalUI::menuIssueSet(std::vector<Issue *> v) {
   bool run = true;
+  bool help = false;
+
   while(run) {
     std::string k = "a";
     std::map<char, Initiative *> inis;
@@ -37,11 +39,7 @@ void TerminalUI::menuIssueSet(std::vector<Issue *> v) {
     k = "a";
 
     c[""] = [&]{ run = false; };
-    c["help"] = [] {
-      cout << "<number> - select issue" << endl;
-      cout << "<letter> - select initiative" << endl;
-      cout << "diff - compare two initiatives" << endl;
-    };
+    c["help"] = [&] { help = true; };
     c["diff"] = [=] {
       if(args.size() != 1 || args[0].size() != 2)
         throw user_error("usage: diff xy     - x and y being initiative keys");
@@ -87,6 +85,22 @@ void TerminalUI::menuIssueSet(std::vector<Issue *> v) {
       }
     }
 
+    if(help) {
+      cout << "^  ^^^^ ^^^^ ^  ^^^^^^" << endl;
+      cout << "|   |    |   |     |  " << endl;
+      cout << "|   |    |   |     '-- title of the initiative" << endl;
+      cout << "|   |    |   '-------- initative is [s]upported by you" << endl;
+      cout << "|   |    |             initative is [R]evoked by authors" << endl;
+      cout << "|   |    '------------ number of satisfied supporters (no outstanding suggestions)" << endl;
+      cout << "|   '----------------- number of supporters" << endl;
+      cout << "'--------------------- type this letter to select initiative" << endl;
+      cout << "=== Available commands ===" << endl;
+      cout << "<number> - select issue" << endl;
+      cout << "<letter> - select initiative" << endl;
+      cout << "diff xy - compare two initiatives x and y" << endl;
+    }
+
+    help = false;
     handleChoice("IssueSet", c);
   }
 }
@@ -96,6 +110,7 @@ void TerminalUI::menuIssue(Issue *) {
 
 void TerminalUI::menuInitiative(Initiative *i) {
   bool run = true;
+  bool help = false;
   while(run) {
     std::map<char, Suggestion *> sugs;
     char k = 'a';
@@ -106,17 +121,7 @@ void TerminalUI::menuInitiative(Initiative *i) {
 
     Choices c;
     c[""] = [&]{ run = false; };
-    c["help"] = [=] {
-      cout << "<letter> - select suggestion" << endl;
-      if(i->findIssue()->state() == IssueState::ADMISSION ||
-          i->findIssue()->state() == IssueState::DISCUSSION) {
-        cout << "sup - support initiative" << endl;
-        cout << "rej - reject (un-support) initiative" << endl;
-        cout << "com - create comment (suggestion)" << endl;
-        cout << "note - edit the private note, create if necessary" << endl;
-        cout << "fork - create a new initiative based upon this one" << endl;
-      }
-    };
+    c["help"] = [&] { help = true; };
 
     if(i->findIssue()->state() == IssueState::ADMISSION ||
         i->findIssue()->state() == IssueState::DISCUSSION) {
@@ -259,27 +264,38 @@ void TerminalUI::menuInitiative(Initiative *i) {
       c[std::string() + i.first] = [=]{ menuSuggestion(i.second); };
     }
 
+    if(help) {
+      cout << "^  ^^^^^^^" << endl;
+      cout << "|      |" << endl;
+      cout << "|      '-- title of suggestion" << endl;
+      cout << "'--------- type this letter to access suggestion" << endl;
+      cout << "=== Available Commands ===" << endl;
+      cout << "<letter> - select suggestion" << endl;
+      if(i->findIssue()->state() == IssueState::ADMISSION ||
+          i->findIssue()->state() == IssueState::DISCUSSION) {
+        cout << "sup - support initiative" << endl;
+        cout << "rej - reject (un-support) initiative" << endl;
+        cout << "com - create comment (suggestion)" << endl;
+        cout << "note - edit the private note, create if necessary" << endl;
+        cout << "fork - create a new initiative based upon this one" << endl;
+      }
+    };
+
+    help = false;
     handleChoice("Initiative", c);
   }
 }
 
 void TerminalUI::menuSuggestion(Suggestion *s) {
   bool run = true;
+  bool help = false;
   while(run) {
     cout << "===" << s->name() << "===" << endl;
     cout << s->content() << endl;
 
     Choices c;
     c[""] = [&]{ run = false; };
-    c["help"] = [] {
-      cout << "mn - mark suggestion as 'must not'" << endl;
-      cout << "sn - mark suggestion as 'should not'" << endl;
-      cout << "s - mark suggestion as 'should'" << endl;
-      cout << "m - mark suggestion as 'must'" << endl;
-      cout << "f - mark suggestion as 'fulfilled'" << endl;
-      cout << "u - mark suggestion as 'unfulfilled'" << endl;
-      cout << "n - remove mark on suggestion" << endl;
-    };
+    c["help"] = [&] { help = true; };
     c["mn"] = [=] { s->setOpinion(Suggestion::MUST_NOT); };
     c["sn"] = [=] { s->setOpinion(Suggestion::SHOULD_NOT); };
     c["s"] = [=] { s->setOpinion(Suggestion::SHOULD); };
@@ -288,26 +304,44 @@ void TerminalUI::menuSuggestion(Suggestion *s) {
     c["u"] = [=] { s->setOpinion(Suggestion::UNFULFILLED); };
     c["n"] = [=] { s->resetOpinion(); };
 
+    if(help) {
+      cout << "=== Available Commands ===" << endl;
+      cout << "mn - mark suggestion as 'must not'" << endl;
+      cout << "sn - mark suggestion as 'should not'" << endl;
+      cout << "s - mark suggestion as 'should'" << endl;
+      cout << "m - mark suggestion as 'must'" << endl;
+      cout << "f - mark suggestion as 'fulfilled'" << endl;
+      cout << "u - mark suggestion as 'unfulfilled'" << endl;
+      cout << "n - remove mark on suggestion" << endl;
+    };
+
+    help = false;
     handleChoice("Suggestion", c);
   }
 }
 
 void TerminalUI::operator() () {
+  bool help = false;
   while(!cin.eof()) {
     cout << "type help for instructions" << endl;
 
+    if(help) {
+      cout << "help - display this" << endl;
+      cout << "info - query lqfb instance for general info" << endl;
+      cout << "admi - select all issues in admission" << endl;
+      cout << "disc - select all issues in discussion" << endl;
+      cout << "vote - select all issues in voting" << endl;
+      cout << endl;
+      cout << "syntax" << endl;
+      cout << "*xy... <command> <args...>" << endl;
+      cout << "     - execute <command> for each x, y, ..." << endl;
+      cout << endl;
+      cout << "entering an empty line will generally leave a submenu" << endl;
+    };
+
+    help = false;
     handleChoice("", Choices{
-        { "help", []{
-          cout << "help - display this" << endl;
-          cout << "info - query lqfb instance for general info" << endl;
-          cout << "admi - select all issues in admission" << endl;
-          cout << "disc - select all issues in discussion" << endl;
-          cout << "vote - select all issues in voting" << endl;
-          cout << endl;
-          cout << "syntax" << endl;
-          cout << "*xy... <command> <args...>" << endl;
-          cout << "     - execute <command> for each x, y, ..." << endl;
-        }},
+        { "help", [&]{ help = true; }},
         { "info", [=]{ cout << r.getInfo() << endl; }},
         { "admi", [=]{ menuIssueSet(r.findIssues(IssueState::ADMISSION)); }},
         { "disc", [=]{ menuIssueSet(r.findIssues(IssueState::DISCUSSION)); }},
