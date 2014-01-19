@@ -14,6 +14,26 @@
 
 using namespace std;
 
+static void removeBackslashR(istream &i, ostream &o) {
+  string line;
+  while(getline(i, line)) {
+    if(line.size() > 0 && line[line.size() - 1] == '\r') line = line.substr(0, line.size() - 1);
+    o << line << endl;
+  }
+}
+
+static void showDiff(const std::string &a, const std::string &b) {
+  Tempfile aFile, bFile;
+
+  istringstream aStream(a), bStream(b);
+  ofstream aFileStream(aFile.name()), bFileStream(bFile.name());
+  removeBackslashR(aStream, aFileStream);
+  removeBackslashR(bStream, bFileStream);
+
+  std::string cmd = std::string("${DIFF:-vimdiff} '") + aFile.name() + "' '" + bFile.name() + "'";
+  system(cmd.c_str());
+}
+
 string TerminalUI::readline() {
   string ret;
   getline(cin, ret);
@@ -59,13 +79,9 @@ template<> void TerminalUI::menuContent<vector<Issue *>>(const vector<Issue *> &
     if(a == inis.end()) throw user_error("initative does not exist");
     if(b == inis.end()) throw user_error("initative does not exist");
 
-    Tempfile aFile, bFile;
-
-    ofstream(aFile.name()) << "===" << a->second->name() << "===" << endl << a->second->currentDraft()->content() << endl;
-    ofstream(bFile.name()) << "===" << b->second->name() << "===" << endl << b->second->currentDraft()->content() << endl;
-
-    std::string cmd = std::string("${DIFF:-vimdiff} '") + aFile.name() + "' '" + bFile.name() + "'";
-    system(cmd.c_str());
+    showDiff(
+       "===" + a->second->name() + "===\n" + a->second->currentDraft()->content(),
+       "===" + b->second->name() + "===\n" + b->second->currentDraft()->content());
   };
 
   for(auto &i: d) {
@@ -252,6 +268,8 @@ template<> void TerminalUI::menuContent<Initiative *>(Initiative *const & i, Cho
     };
   }
 
+  c["vers"] = [=] { menu(i->findDrafts()); };
+
   std::string txt = i->currentDraft()->content();
   cout << "===" << i->name() << "===" << endl;
   cout << txt << endl;
@@ -278,6 +296,7 @@ template<> void TerminalUI::menuHelp<Initiative *>(Initiative *const & i, Choice
     cout << "note - edit the private note, create if necessary" << endl;
     cout << "fork - create a new initiative based upon this one" << endl;
   }
+  cout << "vers - show historical draft versions" << endl;
 }
 
 template<> std::string TerminalUI::menuPrompt<Initiative *>() { return "Initiative"; }
@@ -307,6 +326,40 @@ template<> void TerminalUI::menuHelp<Suggestion *>(Suggestion *const &, Choices 
 }
 
 template<> std::string TerminalUI::menuPrompt<Suggestion *>() { return "Suggestion"; }
+
+template<> void TerminalUI::menuContent<vector<Draft *>>(const vector<Draft *> &drafts, Choices &c) {
+  char k = 'a';
+  std::map<char, Draft *> draftMap;
+
+  for(auto &i: drafts) {
+    cout << k << ") " << i->created() << endl;
+    draftMap[k] = i;
+    k = nextKey(k);
+  }
+
+  c["diff"] = [=] {
+    if(args.size() != 1 || args[0].size() != 2)
+      throw user_error("usage: diff xy     - x and y being draft keys");
+
+    auto a = draftMap.find(args[0][0]);
+    auto b = draftMap.find(args[0][1]);
+    if(a == draftMap.end()) throw user_error("initative does not exist");
+    if(b == draftMap.end()) throw user_error("initative does not exist");
+
+    showDiff(a->second->content(), b->second->content());
+  };
+}
+
+template<> void TerminalUI::menuHelp<vector<Draft *>>(const vector<Draft *> &, Choices &) {
+  cout << "^  ^^^^^^^^" << endl;
+  cout << "|      |" << endl;
+  cout << "|      '-- when the draft was created" << endl;
+  cout << "'--------- draft identifiers" << endl;
+  cout << "=== Available Commands ===" << endl;
+  cout << "diff xy - compare drafts x and y" << endl;
+}
+
+template<> std::string TerminalUI::menuPrompt<vector<Draft *>>() { return "DraftSet"; }
 
 template<> void TerminalUI::menuContent<vector<Area *>>(const vector<Area *> &areas, Choices &c) {
   std::map<char, Area *> areaMap;

@@ -31,6 +31,7 @@ class Reningsverk {
     Issue *findIssue(const Initiative &);
     std::vector<Initiative *> findInitiatives(const Issue &);
     Draft *findCurrentDraft(const Initiative &);
+    std::vector<Draft *> findDrafts(const Initiative &);
     std::vector<Suggestion *> findSuggestions(const Initiative &);
     bool amSupporter(const Initiative &);
     std::string defaultPolicyId(const Area &);

@@ -40,6 +40,7 @@ class Initiative {
     bool amSupporter() const;
     std::string name() const { return data["name"].asString(); }
     Draft *currentDraft() const;
+    std::vector<Draft *> findDrafts() const;
     Issue *findIssue() const;
     std::vector<Suggestion *> findSuggestions() const;
 

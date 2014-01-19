@@ -7,6 +7,10 @@ Draft *Initiative::currentDraft() const {
   return r.findCurrentDraft(*this);
 }
 
+std::vector<Draft *> Initiative::findDrafts() const {
+  return r.findDrafts(*this);
+}
+
 std::vector<Suggestion *> Initiative::findSuggestions() const {
   return r.findSuggestions(*this);
 }

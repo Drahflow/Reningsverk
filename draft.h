@@ -17,6 +17,7 @@ class Draft {
       return str.str();
     };
     std::string content() const { return data["content"].asString(); }
+    std::string created() const { return data["created"].asString(); }
 
   private:
     Reningsverk &r;

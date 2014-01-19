@@ -272,7 +272,6 @@ Draft *Reningsverk::findCurrentDraft(const Initiative &i) {
   for(auto &i: v) {
     encache(draftCache, i);
 
-    cout << i << endl;
     if(initiativeCache.find(str(i["initiative_id"])) == initiativeCache.end()) throw std::runtime_error("Server returned data which was not requested");
     initiativeCache[str(i["initiative_id"])]->cacheCurrentDraft(draftCache[str(i["id"])].get());
 
@@ -280,6 +279,19 @@ Draft *Reningsverk::findCurrentDraft(const Initiative &i) {
   }
 
   throw std::logic_error("One-sized vector was not iterated");
+}
+
+std::vector<Draft *> Reningsverk::findDrafts(const Initiative &i) {
+  auto v = lqfb(GET, API + "/draft", {{"initiative_id", i.id()}})["result"];
+
+  std::vector<Draft *> ret;
+  for(auto &i: v) {
+    Draft *d = encache(draftCache, i);
+
+    ret.push_back(d);
+  }
+
+  return ret;
 }
 
 vector<Suggestion *> Reningsverk::findSuggestions(const Initiative &i) {
