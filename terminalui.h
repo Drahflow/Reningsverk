@@ -101,6 +101,8 @@ class TerminalUI {
       }
     }
 
+    void menuAreaSet(std::vector<Area *>);
+    void menuArea(Area *);
     void menuIssueSet(std::vector<Issue *>);
     void menuIssue(Issue *);
     void menuInitiative(Initiative *);

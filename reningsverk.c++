@@ -124,6 +124,42 @@ std::string Reningsverk::getInfo() {
   return lqfb(GET, API + "/info", {}).toStyledString();
 }
 
+vector<Area *> Reningsverk::findAreas() {
+  vector<Area *> ret;
+  auto v = lqfb(GET, API + "/area", {})["result"];
+  for(auto &i: v) {
+    Area *a = encache(areaCache, i);
+    ret.push_back(a);
+  }
+
+  return ret;
+}
+
+vector<Policy *> Reningsverk::findAllowedPolicies(const Area &a) {
+  vector<Json::Value> ids;
+  {
+    auto v = lqfb(GET, API + "/allowed_policy", {{"area_id", a.id()}})["result"];
+    transform(v.begin(), v.end(), back_inserter(ids), [&](Json::Value &p) { return p["policy_id"]; });
+  }
+
+  bool any = false;
+  ostringstream idString;
+  for(auto &i: ids) {
+    if(any) idString << ",";
+    any = true;
+    idString << i.asInt();
+  }
+
+  vector<Policy *> ret;
+  auto v = lqfb(GET, API + "/policy", {{"policy_id", idString.str()}})["result"];
+  for(auto &i: v) {
+    Policy *p = encache(policyCache, i);
+    ret.push_back(p);
+  }
+
+  return ret;
+}
+
 vector<Issue *> Reningsverk::findIssues(const IssueState &state) {
   std::string strState;
   switch(state) {
@@ -311,6 +347,21 @@ void Reningsverk::createInitiative(const Issue &i, const string &name, const str
   issueCache[i.id()]->flushCacheInitative();
 }
 
+void Reningsverk::createIssue(const Area &a, const Policy &p, const string &name, const string &content) {
+  lqfb(POST, WEB + "/initiative/create", {
+      {"policy_id", p.id()},
+      {"name", name},
+      {"formatting_engine", "rocketwiki"},
+      {"draft", content},
+      {"discussion_url", ""},
+      {"area_id", a.id()},
+      {"_webmcp_csrf_secret", csrfToken},
+      {"_webmcp_routing.default.view", "new"},
+      {"_webmcp_routing.default.module", "initiative"},
+      {"_webmcp_routing.default.mode", "forward"},
+      });
+}
+
 bool Reningsverk::amSupporter(const Initiative &i) {
   // bool supporting = lqfb(GET, API + "/supporter", {
   //     {"initiative_id", i.id()},
@@ -321,19 +372,61 @@ bool Reningsverk::amSupporter(const Initiative &i) {
 
   istream &html = http(GET, WEB + "/index/index.html?tab=open&filter_interest=supported&filter_delegation=any", {});
   bool support = false;
+  bool author = false;
+  std::vector<std::string> authoredInis;
+
   while(html) {
     string tok;
     html >> tok;
-    if(tok == "class=\"initiative\"><div") support = false;
+    if(tok == "class=\"initiative\"><div") {
+      support = false;
+      author = false;
+    }
+    cout << tok << endl;
     if(tok == "src=\"../static/icons/16/thumb_up_green.png\"") support = true;
-    if(support && tok.substr(0, 25) == "class=\"initiative_link\">i") {
-      auto supportedIni = tok.substr(25, tok.size() - 25 - 1);
-      auto cache = initiativeCache.find(supportedIni);
-      if(cache != initiativeCache.end()) cache->second->cacheAmSupporter(true);
+    if(tok == "src=\"../static/icons/16/user_edit.png\"") author = true;
+    if(tok.substr(0, 25) == "class=\"initiative_link\">i") {
+      auto currentIni = tok.substr(25, tok.size() - 25 - 1);
+      if(support) {
+        auto cache = initiativeCache.find(currentIni);
+        if(cache != initiativeCache.end()) cache->second->cacheAmSupporter(true);
+      }
+      if(author) {
+        authoredInis.push_back(currentIni);
+      }
+    }
+  }
+
+  for(auto &i: authoredInis) {
+    istream &html = http(GET, WEB + "/initiative/show/" + i + ".html", {});
+    while(html) {
+      string tok;
+      html >> tok;
+      if(tok == "src=\"../../static/icons/16/thumb_up_green.png\"") {
+        auto cache = initiativeCache.find(i);
+        if(cache != initiativeCache.end()) cache->second->cacheAmSupporter(true);
+      }
     }
   }
 
   return initiativeCache[i.id()]->amSupporter();
+}
+
+std::string Reningsverk::defaultPolicyId(const Area &a) {
+  auto v = lqfb(GET, API + "/allowed_policy", {{"area_id", a.id()}})["result"];
+
+  std::string defaultPolicy;
+
+  for(auto &i: v) {
+    if(i["default_policy"].asBool()) {
+      if(defaultPolicy != "") throw runtime_error("multiple policies reported as default");
+      defaultPolicy = str(i["policy_id"].asInt());
+    }
+  }
+
+  if(defaultPolicy != "") areaCache[a.id()]->cacheDefaultPolicyId(defaultPolicy);
+
+  return defaultPolicy;
 }
 
 std::string Reningsverk::str(int i) {

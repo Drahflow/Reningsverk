@@ -279,7 +279,7 @@ void TerminalUI::menuInitiative(Initiative *i) {
         cout << "note - edit the private note, create if necessary" << endl;
         cout << "fork - create a new initiative based upon this one" << endl;
       }
-    };
+    }
 
     help = false;
     handleChoice("Initiative", c);
@@ -313,10 +313,117 @@ void TerminalUI::menuSuggestion(Suggestion *s) {
       cout << "f - mark suggestion as 'fulfilled'" << endl;
       cout << "u - mark suggestion as 'unfulfilled'" << endl;
       cout << "n - remove mark on suggestion" << endl;
-    };
+    }
 
     help = false;
     handleChoice("Suggestion", c);
+  }
+}
+
+void TerminalUI::menuAreaSet(std::vector<Area *> areas) {
+  bool run = true;
+  bool help = false;
+  while(run) {
+    Choices c;
+    c[""] = [&]{ run = false; };
+    c["help"] = [&] { help = true; };
+
+    std::map<char, Area *> areaMap;
+    char k = 'a';
+    for(auto &i: areas) {
+      areaMap[k] = i;
+      k = nextKey(k);
+    }
+
+    for(auto &i: areaMap) {
+      c[std::string() + i.first] = [=]{ menuArea(i.second); };
+      cout << i.first << ") " << i.second->name() << endl;
+    }
+
+    if(help) {
+      cout << "^" << endl;
+      cout << "|" << endl;
+      cout << "'-- type this letter to access area" << endl;
+      cout << "=== Available Commands ===" << endl;
+      cout << "<letter> - select area" << endl;
+    }
+
+    help = false;
+    handleChoice("AreaSet", c);
+  }
+}
+
+void TerminalUI::menuArea(Area *a) {
+  bool run = true;
+  bool help = false;
+  while(run) {
+    Choices c;
+    c[""] = [&]{ run = false; };
+    c["help"] = [&] { help = true; };
+    c["prop"] = [=] {
+      Tempfile tmp;
+      {
+        ofstream txt(tmp.name());
+
+        txt << "Title of the new initiative" << endl;
+        txt << "# Please un-comment and re-comment one of the following lines" << endl;
+        txt << "# to select the voting policy for the new issue" << endl;
+        for(auto &p: a->findAllowedPolicies()) {
+          if(p->id() != a->defaultPolicyId()) {
+            txt << "# ";
+          }
+          txt << p->id() << " " << p->name() << endl;
+        }
+        txt << "# Thank you. Now for the..." << endl;
+        txt << "Text of the new initiative," << endl;
+        txt << "possibly spanning multiple lines" << endl;
+      }
+
+      std::string cmd = std::string("${EDITOR:-vim} '") + tmp.name() + "'";
+      system(cmd.c_str());
+
+      {
+        ifstream txt(tmp.name());
+        string name;
+        if(!getline(txt, name)) throw user_error("no title supplied");
+
+        std::string policyId;
+        string policyLine;
+        while(policyId == "" && getline(txt, policyLine)) {
+          if(policyLine.empty() || policyLine[0] == '#') continue;
+          istringstream(policyLine) >> policyId;
+        }
+
+        Policy *policy = nullptr;
+        for(auto &i: a->findAllowedPolicies()) {
+          if(i->id() == policyId) policy = i;
+        }
+        if(!policy) throw user_error("no or invalid policy supplied");
+
+        string content;
+        string line;
+        while(getline(txt, line)) {
+          if(!line.empty() && line[0] == '#') continue;
+          content += line + "\r\n";
+        }
+
+        if(name == "Title of the new initiative") throw user_error("title not changed");
+        if(content.size() < 20) throw user_error("insufficient content supplied");
+
+        a->createIssue(policy, name, content);
+      }
+    };
+
+    cout << "===" << a->name() << "===" << endl;
+    cout << a->description() << endl;
+
+    if(help) {
+      cout << "=== Available Commands ===" << endl;
+      cout << "prop - propose an initiative" << endl;
+    }
+
+    help = false;
+    handleChoice("Area", c);
   }
 }
 
@@ -331,13 +438,14 @@ void TerminalUI::operator() () {
       cout << "admi - select all issues in admission" << endl;
       cout << "disc - select all issues in discussion" << endl;
       cout << "vote - select all issues in voting" << endl;
+      cout << "area - list all areas" << endl;
       cout << endl;
       cout << "syntax" << endl;
       cout << "*xy... <command> <args...>" << endl;
       cout << "     - execute <command> for each x, y, ..." << endl;
       cout << endl;
       cout << "entering an empty line will generally leave a submenu" << endl;
-    };
+    }
 
     help = false;
     handleChoice("", Choices{
@@ -345,7 +453,8 @@ void TerminalUI::operator() () {
         { "info", [=]{ cout << r.getInfo() << endl; }},
         { "admi", [=]{ menuIssueSet(r.findIssues(IssueState::ADMISSION)); }},
         { "disc", [=]{ menuIssueSet(r.findIssues(IssueState::DISCUSSION)); }},
-        { "vote", [=]{ menuIssueSet(r.findIssues(IssueState::VOTING)); }}
+        { "vote", [=]{ menuIssueSet(r.findIssues(IssueState::VOTING)); }},
+        { "area", [=]{ menuAreaSet(r.findAreas()); }},
       });
   }
 }

@@ -12,6 +12,7 @@ Features
 * Compare initiatives using your favorite $DIFF.
 * Apply commands across multiple initiatives and suggestions.
 * Make private notes.
+* Fork existing initatives, or create brand new issues.
 
 
 Planned
@@ -19,7 +20,6 @@ Planned
 
 * See what's new.
 * Voting phase. (There was no issue in voting while I coded this.)
-* Create brand new issue.
 * Delegation tree analysis.
 * Suggestions based on earlier voting similarities.
 * Search.

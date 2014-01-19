@@ -2,6 +2,7 @@
 #define RENINGSVERK_H
 
 #include "issue.h"
+#include "area.h"
 #include "localstore.h"
 
 #include <string>
@@ -23,16 +24,20 @@ class Reningsverk {
     Reningsverk(const std::string &key, const std::string &user, const std::string &password);
 
     std::string getInfo();
+    std::vector<Area *> findAreas();
     std::vector<Issue *> findIssues(const IssueState &);
+    std::vector<Policy *> findAllowedPolicies(const Area &);
     Issue *findIssue(const Initiative &);
     std::vector<Initiative *> findInitiatives(const Issue &);
     Draft *findCurrentDraft(const Initiative &);
     std::vector<Suggestion *> findSuggestions(const Initiative &);
     bool amSupporter(const Initiative &);
+    std::string defaultPolicyId(const Area &);
 
     void support(const Initiative &, bool yes);
     void createSuggestion(const Initiative &, const std::string &name, const std::string &content);
     void createInitiative(const Issue &, const std::string &name, const std::string &content);
+    void createIssue(const Area &, const Policy &policy, const std::string &name, const std::string &content);
     void setOpinionDegree(const Suggestion &, int degree);
     void setOpinionFulfilment(const Suggestion &, bool fulfilled);
     void resetOpinion(const Suggestion &);
@@ -61,6 +66,8 @@ class Reningsverk {
     std::string str(int i);
     std::string str(const Json::Value &v);
 
+    std::map<std::string, std::unique_ptr<Area>> areaCache;
+    std::map<std::string, std::unique_ptr<Policy>> policyCache;
     std::map<std::string, std::unique_ptr<Issue>> issueCache;
     std::map<std::string, std::unique_ptr<Initiative>> initiativeCache;
     std::map<std::string, std::unique_ptr<Draft>> draftCache;
