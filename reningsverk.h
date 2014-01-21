@@ -47,6 +47,9 @@ class Reningsverk {
     std::string getLocal(const std::string &key) { return localData->get(key); }
     void setLocal(const std::string &key, const std::string &value) { return localData->set(key, value); }
 
+    static std::string str(int i);
+    static std::string str(const Json::Value &v);
+
   private:
     bool DUMP = true;
 
@@ -64,9 +67,6 @@ class Reningsverk {
         const std::map<std::string, Json::Value> &data);
     Json::Value lqfb(const Method &, const std::string &path,
         const std::map<std::string, Json::Value> &data);
-
-    std::string str(int i);
-    std::string str(const Json::Value &v);
 
     std::map<std::string, std::unique_ptr<Area>> areaCache;
     std::map<std::string, std::unique_ptr<Policy>> policyCache;

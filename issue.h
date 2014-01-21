@@ -3,13 +3,11 @@
 
 #include "initiative.h"
 
-#include <string>
+#include "entity.h"
+
 #include <vector>
-#include <sstream>
 #include <memory>
 #include <stdexcept>
-
-#include <jsoncpp/json/json.h>
 
 enum class IssueState {
   OPEN, // pseude-state used for selection only
@@ -22,25 +20,16 @@ enum class IssueState {
   FINISHED
 };
 
-class Reningsverk;
 class Initiative;
 
-class Issue {
+class Issue: public Entity {
   public:
-    Issue(Reningsverk &r, const Json::Value &data): r(r), data(data), initiativeCacheValid(false) { }
+    Issue(Reningsverk &r, const Json::Value &data): Entity(r, data), initiativeCacheValid(false) { }
 
     std::vector<Initiative *> findInitiatives() const;
 
-    std::string id() const {
-      std::ostringstream str;
-      str << data["id"].asUInt();
-      return str.str();
-    };
-    std::string areaId() const {
-      std::ostringstream str;
-      str << data["area_id"].asUInt();
-      return str.str();
-    };
+    std::string areaId() const { return str(data["area_id"]); }
+
     IssueState state() const {
       if(data["state"] == "admission") return IssueState::ADMISSION;
       if(data["state"] == "discussion") return IssueState::DISCUSSION;
@@ -64,9 +53,6 @@ class Issue {
     void flushCacheInitative();
 
   private:
-    Reningsverk &r;
-    Json::Value data;
-
     bool initiativeCacheValid;
     std::vector<Initiative *> initiativeCache;
 };

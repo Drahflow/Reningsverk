@@ -1,30 +1,21 @@
 #ifndef INITIATIVE_H
 #define INITIATIVE_H
 
+#include "entity.h"
+
 #include "draft.h"
 #include "suggestion.h"
 
 #include <sstream>
 
-#include <jsoncpp/json/json.h>
-
-class Reningsverk;
 class Issue;
 
-class Initiative {
+class Initiative: public Entity {
   public:
-    Initiative(Reningsverk &r, const Json::Value &data): r(r), data(data), currentDraftCache(nullptr), issueCache(nullptr), amSupporterCache(0) { }
+    Initiative(Reningsverk &r, const Json::Value &data): Entity(r, data), currentDraftCache(nullptr), issueCache(nullptr), amSupporterCache(0) { }
 
-    std::string id() const {
-      std::ostringstream str;
-      str << data["id"].asUInt();
-      return str.str();
-    };
-    std::string issueId() const {
-      std::ostringstream str;
-      str << data["issue_id"].asUInt();
-      return str.str();
-    };
+    std::string issueId() const { return str(data["issue_id"]); }
+
     int supporterCount() const {
       return data["supporter_count"].asUInt();
     }
@@ -53,9 +44,6 @@ class Initiative {
     void flushCacheAmSupporter() { amSupporterCache = 0; }
 
   private:
-    Reningsverk &r;
-    Json::Value data;
-
     Draft *currentDraftCache;
     Issue *issueCache;
     int amSupporterCache;

@@ -1,27 +1,13 @@
 #ifndef SUGGESTION_H
 #define SUGGESTION_H
 
-#include <sstream>
+#include "entity.h"
 
-#include <jsoncpp/json/json.h>
-
-class Reningsverk;
-
-class Suggestion {
+class Suggestion: public Entity {
   public:
-    Suggestion(Reningsverk &r, const Json::Value &data): r(r), data(data) { }
+    Suggestion(Reningsverk &r, const Json::Value &data): Entity(r, data) { }
 
-    std::string id() const {
-      std::ostringstream str;
-      str << data["id"].asUInt();
-      return str.str();
-    };
-    std::string initiativeId() const {
-      std::ostringstream str;
-      str << data["initiative_id"].asUInt();
-      return str.str();
-    };
-
+    std::string initiativeId() const { return str(data["initiative_id"]); };
     std::string name() const { return data["name"].asString(); }
     std::string content() const { return data["content"].asString(); }
 
@@ -34,10 +20,6 @@ class Suggestion {
 
     bool seen() const;
     void setSeen(bool yes) const;
-
-  private:
-    Reningsverk &r;
-    Json::Value data;
 };
 
 #endif

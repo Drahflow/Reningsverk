@@ -1,24 +1,15 @@
 #ifndef AREA_H
 #define AREA_H
 
+#include "entity.h"
+
 #include "policy.h"
 #include "issue.h"
 
-#include <sstream>
-
-#include <jsoncpp/json/json.h>
-
-class Reningsverk;
-
-class Area {
+class Area: public Entity {
   public:
-    Area(Reningsverk &r, const Json::Value &data): r(r), data(data), openIssueCacheValid(false) { }
+    Area(Reningsverk &r, const Json::Value &data): Entity(r, data), openIssueCacheValid(false) { }
 
-    std::string id() const {
-      std::ostringstream str;
-      str << data["id"].asUInt();
-      return str.str();
-    };
     std::string name() const { return data["name"].asString(); }
     std::string description() const { return data["description"].asString(); }
 
@@ -34,9 +25,6 @@ class Area {
     void flushCacheOpenIssue();
 
   private:
-    Reningsverk &r;
-    Json::Value data;
-
     std::string defaultPolicyIdCache;
     bool openIssueCacheValid;
     std::vector<Issue *> openIssueCache;

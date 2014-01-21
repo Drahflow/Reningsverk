@@ -480,6 +480,7 @@ bool Reningsverk::amSupporter(const Initiative &i) {
     }
   }
 
+  cout << i.id() << endl;
   return initiativeCache[i.id()]->amSupporter();
 }
 

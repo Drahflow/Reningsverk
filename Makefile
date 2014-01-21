@@ -4,7 +4,7 @@ CXXFLAGS=-W -Wall -Wextra -Werror -pedantic -std=c++11 -ggdb
 LDFLAGS=-lPocoNetSSL -lPocoNet -lPocoFoundation -ljsoncpp
 
 reningsverk: main.o terminalui.o reningsverk.o issue.o initiative.o \
-	     suggestion.o localstore.o tempfile.o area.o draft.o
+	     suggestion.o localstore.o tempfile.o area.o draft.o entity.o
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) $^ -o $@
 
 %.o: %.c++ *.h
