@@ -85,7 +85,18 @@ template<> void TerminalUI::menuContent<vector<Issue *>>(const vector<Issue *> &
   };
 
   for(auto &i: d) {
-    cout << "===" << i->id() << "===" << endl;
+    std::string stateString;
+    switch(i->state()) {
+      case IssueState::ADMISSION: stateString = "admission"; break;
+      case IssueState::DISCUSSION: stateString = "discussion"; break;
+      case IssueState::VERIFICATION: stateString = "verification"; break;
+      case IssueState::VOTING: stateString = "voting"; break;
+      case IssueState::CANCELED: stateString = "cancelled"; break;
+      case IssueState::FINISHED: stateString = "finished"; break;
+      default: stateString = "<unknown state>"; break;
+    }
+
+    cout << "===" << i->id() << " (" << stateString << ") ===" << endl;
     c[i->id()] = [=]{ menu(i); };
 
     for(auto &j: i->findInitiatives()) {
