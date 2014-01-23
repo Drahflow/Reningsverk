@@ -330,12 +330,12 @@ template<> void TerminalUI::menuContent<Suggestion *>(Suggestion *const &s, Choi
     cout << "===" << s->name() << "===" << endl;
     cout << s->content() << endl;
 
-    c["mn"] = [=] { s->setOpinion(Suggestion::MUST_NOT); };
-    c["sn"] = [=] { s->setOpinion(Suggestion::SHOULD_NOT); };
-    c["s"] = [=] { s->setOpinion(Suggestion::SHOULD); };
-    c["m"] = [=] { s->setOpinion(Suggestion::MUST); };
-    c["f"] = [=] { s->setOpinion(Suggestion::FULFILLED); };
-    c["u"] = [=] { s->setOpinion(Suggestion::UNFULFILLED); };
+    c["mn"] = [=] { s->setOpinion(Suggestion::MUST_NOT); s->setSeen(true); };
+    c["sn"] = [=] { s->setOpinion(Suggestion::SHOULD_NOT); s->setSeen(true); };
+    c["s"] = [=] { s->setOpinion(Suggestion::SHOULD); s->setSeen(true); };
+    c["m"] = [=] { s->setOpinion(Suggestion::MUST); s->setSeen(true); };
+    c["f"] = [=] { s->setOpinion(Suggestion::FULFILLED); s->setSeen(true); };
+    c["u"] = [=] { s->setOpinion(Suggestion::UNFULFILLED); s->setSeen(true); };
     c["n"] = [=] { s->resetOpinion(); };
     c["seen"] = [=] { s->setSeen(true); };
     c["unseen"] = [=] { s->setSeen(false); };
@@ -380,6 +380,9 @@ template<> void TerminalUI::menuContent<vector<Draft *>>(const vector<Draft *> &
     if(b == draftMap.end()) throw user_error("initative does not exist");
 
     showDiff(a->second->content(), b->second->content());
+
+    a->second->setSeen(true);
+    b->second->setSeen(true);
   };
 }
 
