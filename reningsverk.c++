@@ -128,10 +128,7 @@ std::string Reningsverk::getInfo() {
 vector<Area *> Reningsverk::findAreas() {
   vector<Area *> ret;
   auto v = lqfb(GET, API + "/area", {})["result"];
-  for(auto &i: v) {
-    Area *a = encache(areaCache, i);
-    ret.push_back(a);
-  }
+  for(auto &i: v) ret.push_back(encache(areaCache, i));
 
   return ret;
 }
@@ -153,10 +150,7 @@ vector<Policy *> Reningsverk::findAllowedPolicies(const Area &a) {
 
   vector<Policy *> ret;
   auto v = lqfb(GET, API + "/policy", {{"policy_id", idString.str()}})["result"];
-  for(auto &i: v) {
-    Policy *p = encache(policyCache, i);
-    ret.push_back(p);
-  }
+  for(auto &i: v) ret.push_back(encache(policyCache, i));
 
   return ret;
 }
@@ -176,8 +170,7 @@ void Reningsverk::precacheIssues(const vector<Issue *> &issues) {
   auto v2 = lqfb(GET, API + "/initiative", {{"issue_id", issueIds.str()}})["result"];
   std::vector<Initiative *> loadedInis;
   for(auto &i: v2) {
-    Initiative *ini = encache(initiativeCache, i);
-    loadedInis.push_back(ini);
+    Initiative *ini = encache(initiativeCache, i, loadedInis);
 
     cout << i << endl;
     if(issueCache.find(str(i["issue_id"])) == issueCache.end()) throw std::runtime_error("Server returned data which was not requested");
@@ -279,25 +272,19 @@ Draft *Reningsverk::findCurrentDraft(const Initiative &i) {
 }
 
 std::vector<Draft *> Reningsverk::findDrafts(const Initiative &i) {
-  auto v = lqfb(GET, API + "/draft", {{"initiative_id", i.id()}})["result"];
-
   std::vector<Draft *> ret;
-  for(auto &i: v) {
-    Draft *d = encache(draftCache, i);
 
-    ret.push_back(d);
-  }
+  auto v = lqfb(GET, API + "/draft", {{"initiative_id", i.id()}})["result"];
+  for(auto &i: v) ret.push_back(encache(draftCache, i));
 
   return ret;
 }
 
 vector<Suggestion *> Reningsverk::findSuggestions(const Initiative &i) {
   vector<Suggestion *> ret;
-  auto v = lqfb(GET, API + "/suggestion", {{"initiative_id", i.id()}})["result"];
 
-  for(auto &i: v) {
-    ret.push_back(encache(suggestionCache, i));
-  }
+  auto v = lqfb(GET, API + "/suggestion", {{"initiative_id", i.id()}})["result"];
+  for(auto &i: v) ret.push_back(encache(suggestionCache, i));
 
   return ret;
 }
