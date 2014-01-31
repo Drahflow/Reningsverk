@@ -34,6 +34,7 @@ class Reningsverk {
     std::vector<Draft *> findDrafts(const Initiative &);
     std::vector<Suggestion *> findSuggestions(const Initiative &);
     bool amSupporter(const Initiative &);
+    bool haveVoted(const Issue &);
     std::string defaultPolicyId(const Area &);
 
     void support(const Initiative &, bool yes);
@@ -43,6 +44,7 @@ class Reningsverk {
     void setOpinionDegree(const Suggestion &, int degree);
     void setOpinionFulfilment(const Suggestion &, bool fulfilled);
     void resetOpinion(const Suggestion &);
+    void castVote(const Issue &, const std::map<Initiative *, int> &ballot);
 
     std::string getLocal(const std::string &key) { return localData->get(key); }
     void setLocal(const std::string &key, const std::string &value) { return localData->set(key, value); }

@@ -22,3 +22,12 @@ vector<Initiative *> Issue::findInitiatives() const {
 void Issue::createInitiative(const std::string &name, const std::string &content) const {
   return r.createInitiative(*this, name, content);
 }
+
+void Issue::castVote(const std::map<Initiative *, int> &ballot) const {
+  return r.castVote(*this, ballot);
+}
+
+bool Issue::haveVoted() const {
+  if(haveVotedCache) return haveVotedCache == 1;
+  return r.haveVoted(*this);
+}

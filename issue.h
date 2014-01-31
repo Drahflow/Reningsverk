@@ -8,6 +8,7 @@
 #include <vector>
 #include <memory>
 #include <stdexcept>
+#include <map>
 
 enum class IssueState {
   OPEN, // pseude-state used for selection only
@@ -45,16 +46,23 @@ class Issue: public Entity {
       if(data["state"] == "finished_with_winner") return IssueState::FINISHED;
       throw std::runtime_error("invalid issue state");
     }
+    bool haveVoted() const;
 
     void createInitiative(const std::string &name, const std::string &title) const;
+    void castVote(const std::map<Initiative *, int> &ballot) const;
 
     // if called, must be called for all initiatives
     void cacheInitiative(Initiative *);
     void flushCacheInitative();
 
+    void cacheHaveVoted(bool voted) { haveVotedCache = voted? 1: -1; }
+    void flushCacheHaveVoted() { haveVotedCache = 0; }
+
   private:
     bool initiativeCacheValid;
     std::vector<Initiative *> initiativeCache;
+
+    int haveVotedCache;
 };
 
 #endif

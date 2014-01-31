@@ -442,7 +442,12 @@ bool Reningsverk::amSupporter(const Initiative &i) {
   
   for(auto &i: initiativeCache) i.second->cacheAmSupporter(false);
 
-  istream &html = http(GET, WEB + "/index/index.html?tab=open&filter_interest=supported&filter_delegation=any", {});
+  istream &html = http(GET, WEB + "/index/index.html", {
+      {"tab", "open"},
+      {"filter_interest", "supported"},
+      {"filter_delegation", "any"}
+      });
+
   bool support = false;
   bool author = false;
   std::vector<std::string> authoredInis;
@@ -484,6 +489,33 @@ bool Reningsverk::amSupporter(const Initiative &i) {
   return initiativeCache[i.id()]->amSupporter();
 }
 
+bool Reningsverk::haveVoted(const Issue &issue) {
+  // the API seems badly lacking here
+  
+  for(auto &i: issueCache) i.second->cacheHaveVoted(false);
+
+  istream &html = http(GET, WEB + "/index/index.html", {
+      {"tab", "open"},
+      {"filter", "frozen"},
+      {"filter_voting", "voted"}
+      });
+
+  while(html) {
+    string tok;
+    html >> tok;
+    if(tok.length() > 15 &&
+        tok[0] == '#' &&
+        tok.substr(tok.length() - 14, 14) == "</a></div><div") {
+      auto votedIssue = tok.substr(1, tok.size() - 14 - 1);
+      auto cache = issueCache.find(votedIssue);
+      if(cache != issueCache.end()) cache->second->cacheHaveVoted(true);
+    }
+  }
+
+  cout << issue.id() << endl;
+  return issueCache[issue.id()]->haveVoted();
+}
+
 std::string Reningsverk::defaultPolicyId(const Area &a) {
   auto v = lqfb(GET, API + "/allowed_policy", {{"area_id", a.id()}})["result"];
 
@@ -499,6 +531,28 @@ std::string Reningsverk::defaultPolicyId(const Area &a) {
   if(defaultPolicy != "") areaCache[a.id()]->cacheDefaultPolicyId(defaultPolicy);
 
   return defaultPolicy;
+}
+
+void Reningsverk::castVote(const Issue &issue, const map<Initiative *, int> &ballot) {
+  ostringstream ballotStr;
+
+  for(auto &i: ballot) {
+    ballotStr << i.first->id() << ":" << i.second << ";";
+  }
+
+  lqfb(POST, WEB + "/vote/update", {
+      {"update_comment", ""},
+      {"scoring", ballotStr.str()},
+      {"issue_id", issue.id()},
+      {"formatting_engine", "rocketwiki"},
+      {"comment", ""},
+      {"_webmcp_csrf_secret", csrfToken},
+      {"_webmcp_routing.default.view", "list"},
+      {"_webmcp_routing.default.module", "vote"},
+      {"_webmcp_routing.default.mode", "forward"},
+      });
+
+  for(auto &i: issueCache) i.second->flushCacheHaveVoted();
 }
 
 std::string Reningsverk::str(int i) {

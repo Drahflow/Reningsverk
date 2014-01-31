@@ -47,6 +47,7 @@ template<typename D> void TerminalUI::menu(const D &d) {
   while(run) {
     Choices c;
     c[""] = [&] { run = false; };
+    c["."] = [&] { };
     c["help"] = [&] { help = true; };
 
     menuContent<D>(d, c);
@@ -83,6 +84,46 @@ template<> void TerminalUI::menuContent<vector<Issue *>>(const vector<Issue *> &
        "===" + a->second->name() + "===\n" + a->second->currentDraft()->content(),
        "===" + b->second->name() + "===\n" + b->second->currentDraft()->content());
   };
+  c["vote"] = [=] {
+    if(args.size() != 1)
+      throw user_error("usage: vote ab>cd_>ef   - all letters being initiative keys of the same issue");
+
+    int group = 0;
+    int neutralOffset = -1;
+    vector<vector<Initiative *>> votes {{}};
+    Issue *issue = nullptr;
+
+    for(auto &c: args[0]) {
+      switch(c) {
+        case '_':
+          if(neutralOffset != -1) throw user_error("only a single _ may specified - it denotes the unique neutral group");
+          neutralOffset = group;
+          break;
+        case '>':
+          ++group;
+          votes.push_back({});
+          break;
+        default: {
+          auto ini = inis.find(c);
+          if(ini == inis.end()) throw user_error("initiative does not exist: " + c);
+          votes.back().push_back(ini->second);
+          if(issue && issue != ini->second->findIssue())
+            throw user_error("initiatives from multiple issues mixed");
+          issue = ini->second->findIssue();
+        }
+      }
+    }
+
+    if(neutralOffset == -1) throw user_error("no _ specified - but it is needed to determine the neutral group");
+
+    map<Initiative *, int> ballot;
+    for(unsigned int i = 0; i < votes.size(); ++i) {
+      for(auto &j: votes[i]) ballot[j] = neutralOffset - i;
+    }
+
+    if(!issue) throw user_error("no initiatives specified");
+    issue->castVote(ballot);
+  };
 
   for(auto &i: d) {
     std::string stateString;
@@ -96,7 +137,9 @@ template<> void TerminalUI::menuContent<vector<Issue *>>(const vector<Issue *> &
       default: stateString = "<unknown state>"; break;
     }
 
-    cout << "===" << i->id() << " (" << stateString << ") ===" << endl;
+    cout << "===" << i->id() << " (" << stateString << ") ";
+    if(i->state() == IssueState::VOTING && !i->haveVoted()) cout << "[not voted yet] ";
+    cout << "===" << endl;
     c[i->id()] = [=]{ menu(i); };
 
     for(auto &j: i->findInitiatives()) {
@@ -140,6 +183,9 @@ template<> void TerminalUI::menuHelp<vector<Issue *>>(const vector<Issue *> &, C
   cout << "<number> - select issue" << endl;
   cout << "<letter> - select initiative" << endl;
   cout << "diff xy - compare two initiatives x and y" << endl;
+  cout << "vote a>bc>def_>gh>i - vote a > b = c (all supported) > d = e = f (all neutral) >" << endl;
+  cout << "                        g = h > i (all opposed)" << endl;
+  cout << "                      the underscore marks the neutral group" << endl;
 }
 
 template<> std::string TerminalUI::menuPrompt<vector<Issue *>>() { return "IssueSet"; }
@@ -538,6 +584,7 @@ void TerminalUI::operator() () {
       cout << "*xy... <command> <args...>" << endl;
       cout << "     - execute <command> for each x, y, ..." << endl;
       cout << endl;
+      cout << "entering a single . will redisplay output" << endl;
       cout << "entering an empty line will generally leave a submenu" << endl;
     }
 
