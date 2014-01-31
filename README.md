@@ -12,14 +12,14 @@ Features
 * Compare initiatives and drafts using your favorite $DIFF.
 * Apply commands across multiple initiatives and suggestions (and general subentity-ish thingies).
 * Make private notes.
-* Fork existing initatives, or create brand new issues.
 * See what's new.
+* Fork existing initatives, or create brand new issues.
+* Vote on initiatives when the time comes (or maybe before - test results outstanding).
 
 
 Planned
 -------
 
-* Voting phase. (There was no issue in voting while I coded this.)
 * Delegation tree analysis.
 * Suggestions based on earlier voting similarities.
 * Search.
