@@ -77,9 +77,20 @@ class Reningsverk {
     std::map<std::string, std::unique_ptr<Draft>> draftCache;
     std::map<std::string, std::unique_ptr<Suggestion>> suggestionCache;
 
+    void precacheIssues(const std::vector<Issue *> &);
+
     template<typename T, typename J> T *encache(std::map<std::string, std::unique_ptr<T>> &cache, const J &j) {
       const std::string idStr = str(j["id"]);
       if(cache.find(idStr) == cache.end()) cache[idStr] = std::unique_ptr<T>(new T(*this, j));
+      return cache[idStr].get();
+    }
+
+    template<typename T, typename J> T *encache(std::map<std::string, std::unique_ptr<T>> &cache, const J &j, std::vector<T *> &created) {
+      const std::string idStr = str(j["id"]);
+      if(cache.find(idStr) == cache.end()) {
+        cache[idStr] = std::unique_ptr<T>(new T(*this, j));
+        created.push_back(cache[idStr].get());
+      }
       return cache[idStr].get();
     }
 };

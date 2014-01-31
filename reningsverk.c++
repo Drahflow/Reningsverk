@@ -15,6 +15,8 @@ const std::string HOST = "lqfb.piratenpartei.de";
 const std::string WEB = "/lf";
 const std::string API = "/api";
 
+// TODO: all HTML "parsing" would better be done with a regex
+
 // FIXME: hardcode certificate instead
 Reningsverk::Reningsverk(const string &key, const string &user, const string &password):
   httpSession{new HTTPSClientSession{HOST, HTTPSClientSession::HTTPS_PORT,
@@ -23,7 +25,6 @@ Reningsverk::Reningsverk(const string &key, const string &user, const string &pa
   if(!getenv("HOME")) throw runtime_error("no $HOME environment variable");
   localData = unique_ptr<LocalStore>(new LocalStore(getenv("HOME") + std::string("/.reningsverk")));
 
-  // TODO: this HTML "parsing" would be better done with a regex
   string loginString;
   istream &loginStream = http(GET, WEB + "/index/login.html", {});
   list<string> tokens;
@@ -160,6 +161,50 @@ vector<Policy *> Reningsverk::findAllowedPolicies(const Area &a) {
   return ret;
 }
 
+void Reningsverk::precacheIssues(const vector<Issue *> &issues) {
+  if(issues.empty()) return;
+
+  ostringstream issueIds;
+  bool any = false;
+
+  for(auto &i: issues) {
+    if(any) issueIds << ",";
+    any = true;
+    issueIds << i->id();
+  }
+
+  auto v2 = lqfb(GET, API + "/initiative", {{"issue_id", issueIds.str()}})["result"];
+  std::vector<Initiative *> loadedInis;
+  for(auto &i: v2) {
+    Initiative *ini = encache(initiativeCache, i);
+    loadedInis.push_back(ini);
+
+    cout << i << endl;
+    if(issueCache.find(str(i["issue_id"])) == issueCache.end()) throw std::runtime_error("Server returned data which was not requested");
+    issueCache[str(i["issue_id"])]->cacheInitiative(initiativeCache[str(i["id"])].get());
+    ini->cacheIssue(issueCache[str(i["issue_id"])].get());
+  }
+
+  if(loadedInis.empty()) return;
+
+  any = false;
+  ostringstream iniIds;
+  for(auto &i: loadedInis) {
+    if(any) iniIds << ",";
+    any = true;
+    iniIds << i->id();
+  }
+
+  auto v3 = lqfb(GET, API + "/draft", {{"initiative_id", iniIds.str()}, {"current_draft", "1"}})["result"];
+  if(v3.size() != loadedInis.size()) throw runtime_error("no 1-1 correspondence between initiatives and current drafts");
+  for(auto &i: v3) {
+    encache(draftCache, i);
+
+    if(initiativeCache.find(str(i["initiative_id"])) == initiativeCache.end()) throw std::runtime_error("Server returned data which was not requested");
+    initiativeCache[str(i["initiative_id"])]->cacheCurrentDraft(draftCache[str(i["id"])].get());
+  }
+}
+
 vector<Issue *> Reningsverk::findIssues(const IssueState &state) {
   std::string strState;
   switch(state) {
@@ -170,93 +215,23 @@ vector<Issue *> Reningsverk::findIssues(const IssueState &state) {
     default: throw std::logic_error("invalid issue state specified");
   }
 
-  ostringstream newIssues;
-  bool any = false;
+  vector<Issue *> ret, newIssues;
 
-  vector<Issue *> ret;
   auto v = lqfb(GET, API + "/issue", {{"issue_state", strState}})["result"];
-  for(auto &i: v) {
-    if(issueCache.find(str(i["id"])) == issueCache.end()) {
-      issueCache[str(i["id"])] = unique_ptr<Issue>(new Issue(*this, i));
+  for(auto &i: v) ret.push_back(encache(issueCache, i, newIssues));
 
-      if(any) newIssues << ",";
-      any = true;
-      newIssues << str(i["id"]);
-    }
-
-    ret.push_back(issueCache[str(i["id"])].get());
-  }
-
-  if(any) {
-    auto v2 = lqfb(GET, API + "/initiative", {{"issue_id", newIssues.str()}})["result"];
-    std::vector<Initiative *> loadedInis;
-    for(auto &i: v2) {
-      Initiative *ini = encache(initiativeCache, i);
-      loadedInis.push_back(ini);
-
-      cout << i << endl;
-      if(issueCache.find(str(i["issue_id"])) == issueCache.end()) throw std::runtime_error("Server returned data which was not requested");
-      issueCache[str(i["issue_id"])]->cacheInitiative(initiativeCache[str(i["id"])].get());
-      ini->cacheIssue(issueCache[str(i["issue_id"])].get());
-    }
-
-    if(!loadedInis.empty()) {
-      bool any = false;
-      ostringstream iniIds;
-      for(auto &i: loadedInis) {
-        if(any) iniIds << ",";
-        any = true;
-        iniIds << i->id();
-      }
-
-      auto v3 = lqfb(GET, API + "/draft", {{"initiative_id", iniIds.str()}, {"current_draft", "1"}})["result"];
-      if(v3.size() != loadedInis.size()) throw runtime_error("no 1-1 correspondence between initiatives and current drafts");
-      for(auto &i: v3) {
-        encache(draftCache, i);
-
-        if(initiativeCache.find(str(i["initiative_id"])) == initiativeCache.end()) throw std::runtime_error("Server returned data which was not requested");
-        initiativeCache[str(i["initiative_id"])]->cacheCurrentDraft(draftCache[str(i["id"])].get());
-      }
-    }
-  }
-
+  precacheIssues(newIssues);
   return ret;
 }
 
 vector<Issue *> Reningsverk::findOpenIssues(const Area &area) {
-  ostringstream newIssues;
-  bool any = false;
-
   areaCache[area.id()]->flushCacheOpenIssue();
 
-  vector<Issue *> ret;
+  vector<Issue *> ret, newIssues;
   auto v = lqfb(GET, API + "/issue", {{"area_id", area.id()}, {"issue_state", "open"}})["result"];
-  for(auto &i: v) {
-    if(issueCache.find(str(i["id"])) == issueCache.end()) {
-      issueCache[str(i["id"])] = unique_ptr<Issue>(new Issue(*this, i));
+  for(auto &i: v) ret.push_back(encache(issueCache, i, newIssues));
 
-      if(any) newIssues << ",";
-      any = true;
-      newIssues << str(i["id"]);
-    }
-
-    Issue *openIssue = issueCache[str(i["id"])].get();
-    areaCache[area.id()]->cacheOpenIssue(openIssue);
-    ret.push_back(openIssue);
-  }
-
-  if(any) {
-    auto v2 = lqfb(GET, API + "/initiative", {{"issue_id", newIssues.str()}})["result"];
-    for(auto &i: v2) {
-      Initiative *ini = encache(initiativeCache, i);
-
-      cout << i << endl;
-      if(issueCache.find(str(i["issue_id"])) == issueCache.end()) throw std::runtime_error("Server returned data which was not requested");
-      issueCache[str(i["issue_id"])]->cacheInitiative(initiativeCache[str(i["id"])].get());
-      ini->cacheIssue(issueCache[str(i["issue_id"])].get());
-    }
-  }
-
+  precacheIssues(newIssues);
   return ret;
 }
 
