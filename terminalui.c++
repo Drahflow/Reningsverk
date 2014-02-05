@@ -138,7 +138,7 @@ template<> void TerminalUI::menuContent<vector<Issue *>>(const vector<Issue *> &
     }
 
     cout << "===" << i->id() << " (" << stateString << ") ";
-    if(i->state() == IssueState::VOTING && !i->haveVoted()) cout << "[not voted yet] ";
+    if(i->state() == IssueState::VOTING && !i->haveVoted()) cout << colorAlert("[not voted yet] ");
     cout << "===" << endl;
     c[i->id()] = [=]{ menu(i); };
 
@@ -146,8 +146,8 @@ template<> void TerminalUI::menuContent<vector<Issue *>>(const vector<Issue *> &
       char stateChar = '.';
       if(j->amSupporter()) stateChar = 's';
       if(j->isRevoked()) stateChar = 'R';
-      char seenChar = '.';
-      if(!j->currentDraft()->seen()) seenChar = 'u';
+      string seenChar = ".";
+      if(!j->currentDraft()->seen()) seenChar = colorAlert("u");
 
       cout << k << ") "
         << setw(4) << j->supporterCount()
@@ -342,8 +342,8 @@ template<> void TerminalUI::menuContent<Initiative *>(Initiative *const & i, Cho
 
   cout << "=== Suggestions ===" << endl;
   for(auto &i: sugs) {
-    char seenChar = '.';
-    if(!i.second->seen()) seenChar = 'u';
+    string seenChar = ".";
+    if(!i.second->seen()) seenChar = colorAlert("u");
     cout << i.first << ") " << seenChar << " " << i.second->name() << endl;
     c[std::string() + i.first] = [=]{ menu(i.second); };
   }
@@ -407,8 +407,8 @@ template<> void TerminalUI::menuContent<vector<Draft *>>(const vector<Draft *> &
   std::map<char, Draft *> draftMap;
 
   for(auto &i: drafts) {
-    char seenChar = '.';
-    if(!i->seen()) seenChar = 'u';
+    string seenChar = ".";
+    if(!i->seen()) seenChar = colorAlert("u");
 
     cout << k << ") " << seenChar << " " << i->created() << endl;
     c[std::string() + k] = [=] { menu(i); };

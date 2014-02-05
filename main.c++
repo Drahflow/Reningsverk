@@ -1,5 +1,5 @@
 #include "reningsverk.h"
-#include "terminalui.h"
+#include "colorterminalui.h"
 
 #include <iostream>
 #include <exception>
@@ -17,7 +17,7 @@ int main(int argc, char *argv[]) {
       return usage();
     }
 
-    TerminalUI(Reningsverk(argv[1], argv[2], argv[3])) ();
+    ColorTerminalUI(Reningsverk(argv[1], argv[2], argv[3])) ();
 
     return 0;
   } catch(std::exception &e) {

@@ -15,8 +15,12 @@
 class TerminalUI {
   public:
     TerminalUI(Reningsverk &&r): r{std::move(r)} { }
+    virtual ~TerminalUI() { }
 
     void operator() ();
+
+  protected:
+    virtual std::string colorAlert(const std::string &s) { return s; }
     
   private:
     typedef std::unordered_map<std::string, std::function<void()>> Choices;
