@@ -202,46 +202,6 @@ template<> void TerminalUI::menuContent<Initiative *>(Initiative *const & i, Cho
       i->findIssue()->state() == IssueState::DISCUSSION) {
     c["sup"] = [=] { i->support(true); };
     c["rej"] = [=] { i->support(false); };
-    c["note"] = [=] {
-      Tempfile tmp;
-      {
-        ofstream txt(tmp.name());
-
-        istringstream note(i->note());
-        {
-          string line;
-          while(getline(note, line)) {
-            if(line.size() > 0 && line[line.size() - 1] == '\r') line = line.substr(0, line.size() - 1);
-            txt << line << endl;
-          }
-        }
-        if(i->note() == "") txt << endl;
-        txt << "# Lines starting in # are ignored..." << endl
-          << "#" << endl;
-        txt << "# " << i->name() << endl;
-        istringstream content(i->currentDraft()->content());
-        string line;
-        while(getline(content, line)) {
-          if(line.size() > 0 && line[line.size() - 1] == '\r') line = line.substr(0, line.size() - 1);
-          txt << "# " << line << endl;
-        }
-      }
-
-      std::string cmd = std::string("${EDITOR:-vim} '") + tmp.name() + "'";
-      system(cmd.c_str());
-
-      {
-        ifstream txt(tmp.name());
-        string note;
-        string line;
-        while(getline(txt, line)) {
-          if(!line.empty() && line[0] == '#') continue;
-          note += line + "\r\n";
-        }
-
-        i->setNote(note);
-      }
-    };
     c["com"] = [=] {
       Tempfile tmp;
       {
@@ -329,6 +289,46 @@ template<> void TerminalUI::menuContent<Initiative *>(Initiative *const & i, Cho
     };
   }
 
+  c["note"] = [=] {
+    Tempfile tmp;
+    {
+      ofstream txt(tmp.name());
+
+      istringstream note(i->note());
+      {
+        string line;
+        while(getline(note, line)) {
+          if(line.size() > 0 && line[line.size() - 1] == '\r') line = line.substr(0, line.size() - 1);
+          txt << line << endl;
+        }
+      }
+      if(i->note() == "") txt << endl;
+      txt << "# Lines starting in # are ignored..." << endl
+        << "#" << endl;
+      txt << "# " << i->name() << endl;
+      istringstream content(i->currentDraft()->content());
+      string line;
+      while(getline(content, line)) {
+        if(line.size() > 0 && line[line.size() - 1] == '\r') line = line.substr(0, line.size() - 1);
+        txt << "# " << line << endl;
+      }
+    }
+
+    std::string cmd = std::string("${EDITOR:-vim} '") + tmp.name() + "'";
+    system(cmd.c_str());
+
+    {
+      ifstream txt(tmp.name());
+      string note;
+      string line;
+      while(getline(txt, line)) {
+        if(!line.empty() && line[0] == '#') continue;
+        note += line + "\r\n";
+      }
+
+      i->setNote(note);
+    }
+  };
   c["vers"] = [=] { menu(i->findDrafts()); };
   c["seen"] = [=] { i->currentDraft()->setSeen(true); };
   c["unseen"] = [=] { i->currentDraft()->setSeen(false); };
