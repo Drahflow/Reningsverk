@@ -7,8 +7,6 @@
 #include <iomanip>
 
 #include <Poco/Net/HTMLForm.h>
-#include <Poco/Net/InvalidCertificateHandler.h>
-#include <Poco/Net/SSLManager.h>
 
 #include <openssl/ssl.h>
 
