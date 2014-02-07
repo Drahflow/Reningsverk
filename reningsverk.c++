@@ -4,8 +4,13 @@
 #include <sstream>
 #include <set>
 #include <list>
+#include <iomanip>
 
 #include <Poco/Net/HTMLForm.h>
+#include <Poco/Net/InvalidCertificateHandler.h>
+#include <Poco/Net/SSLManager.h>
+
+#include <openssl/ssl.h>
 
 using namespace std;
 using namespace Poco::Net;
@@ -14,13 +19,40 @@ using namespace Poco;
 const std::string HOST = "lqfb.piratenpartei.de";
 const std::string WEB = "/lf";
 const std::string API = "/api";
+const std::set<std::string> validCerts {
+  "02:fa:f3:e2:91:43:54:68:60:78:57:69:4d:f5:e4:5b:68:85:18:68",
+  "94:80:7b:1c:78:8d:d2:fc:be:19:c8:48:1c:e4:1c:fa:b8:a4:c1:7f",
+  "92:e5:ed:69:d9:d0:68:74:51:5c:9e:e7:b4:63:ed:c9:d8:c8:b8:03",
+};
 
 // TODO: all HTML "parsing" would better be done with a regex
 
-// FIXME: hardcode certificate instead
-Reningsverk::Reningsverk(const string &key, const string &user, const string &password):
-  httpSession{new HTTPSClientSession{HOST, HTTPSClientSession::HTTPS_PORT,
-      new Context{Context::CLIENT_USE, "", "", "", Context::VERIFY_NONE, 9, true}}} {
+// Certificate authorities are not trustworthy. #NSATimes
+int checkFixedCertificate(int, X509_STORE_CTX *ctx) {
+  X509 *cert = X509_STORE_CTX_get_current_cert(ctx);
+  
+  ostringstream hash;
+  for(size_t i = 0; i < SHA_DIGEST_LENGTH; ++i) {
+    if(i) hash << ":";
+    hash << hex << setw(2) << setfill('0') << static_cast<unsigned int>(cert->sha1_hash[i]);
+  }
+  
+  const int valid = validCerts.count(hash.str());
+  if(!valid) {
+    cout << cert->name << endl;
+    cout << "Certificate fingerprint (sha1): " << hash.str() << endl;
+    throw std::runtime_error("fingerprint not in hardcoded set - refusing to connect");
+  }
+  return valid;
+}
+
+Reningsverk::Reningsverk(const string &key, const string &user, const string &password) {
+  Poco::Net::Context::Ptr context =
+      new Poco::Net::Context(Poco::Net::Context::CLIENT_USE, "", "","", Poco::Net::Context::VERIFY_RELAXED, 9, false);
+  httpSession = unique_ptr<HTTPSClientSession>(new HTTPSClientSession(HOST, HTTPSClientSession::HTTPS_PORT, context));
+
+  // Poco does not support checking each certificate in a chain
+  SSL_CTX_set_verify(context->sslContext(), SSL_VERIFY_PEER, checkFixedCertificate);
 
   if(!getenv("HOME")) throw runtime_error("no $HOME environment variable");
   localData = unique_ptr<LocalStore>(new LocalStore(getenv("HOME") + std::string("/.reningsverk")));
